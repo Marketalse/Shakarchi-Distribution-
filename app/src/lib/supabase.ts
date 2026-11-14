@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Remote } from './sync'
+import type { ReferenceSource } from './pull'
+import type { Outlet, Product, SurveyBrand } from './types'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
@@ -16,5 +18,21 @@ export function supabaseRemote(client: SupabaseClient): Remote {
         .upsert(row, { onConflict: 'id', ignoreDuplicates: true })
       if (error) throw new Error(error.message)
     },
+  }
+}
+
+
+async function all<T>(client: SupabaseClient, table: string): Promise<T[]> {
+  const { data, error } = await client.from(table).select('*')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as T[]
+}
+
+/** Reference data from Supabase. The access rules decide which outlets come back. */
+export function supabaseSource(client: SupabaseClient): ReferenceSource {
+  return {
+    outlets: () => all<Outlet>(client, 'outlets'),
+    products: () => all<Product>(client, 'products'),
+    surveyBrands: () => all<SurveyBrand>(client, 'survey_brands'),
   }
 }
