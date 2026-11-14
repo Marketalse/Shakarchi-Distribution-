@@ -6,10 +6,11 @@ import { Login } from './screens/Login'
 import { Outlets } from './screens/Outlets'
 import { NewOutlet } from './screens/NewOutlet'
 import { Visit } from './screens/Visit'
+import { NewPassword } from './screens/NewPassword'
 import { en as t } from './i18n/en'
 
 export default function App() {
-  const session = useSession()
+  const { session, recovering, finishRecovery } = useSession()
   const sync = useSync(Boolean(session))
   const repId = session?.user.id
 
@@ -30,6 +31,8 @@ export default function App() {
       </header>
       {session === undefined ? null : !repId ? (
         <Login />
+      ) : recovering ? (
+        <NewPassword onDone={finishRecovery} />
       ) : (
         <Routes>
           <Route path="/" element={<Outlets version={sync.version + sync.pending} />} />

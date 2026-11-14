@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase'
 import { en as t } from '../i18n/en'
 
 export function Login() {
+  const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function submit(e: FormEvent) {
+  async function signIn(e: FormEvent) {
     e.preventDefault()
     if (!supabase) return
     setBusy(true)
@@ -18,11 +20,51 @@ export function Login() {
     setBusy(false)
   }
 
+  async function sendLink(e: FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    setBusy(true)
+    setError('')
+    setNotice('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/`,
+    })
+    // The same message is shown whether or not the email exists, so the form
+    // cannot be used to find out who has an account.
+    if (error && error.status === 429) setError(t.login.sendFailed)
+    else setNotice(t.login.linkSent)
+    setBusy(false)
+  }
+
+  function switchTo(next: 'signin' | 'forgot') {
+    setMode(next)
+    setError('')
+    setNotice('')
+  }
+
+  if (mode === 'forgot') {
+    return (
+      <main>
+        <h1>{t.login.forgotTitle}</h1>
+        <p className="muted">{t.login.forgotHelp}</p>
+        <form onSubmit={sendLink} className="form">
+          <label>{t.login.email}
+            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          {error && <p className="error" role="alert">{error}</p>}
+          {notice && <p className="ok-text" role="status">{notice}</p>}
+          <button className="primary" disabled={busy || !supabase}>{t.login.sendLink}</button>
+          <button type="button" className="link" onClick={() => switchTo('signin')}>{t.login.backToSignIn}</button>
+        </form>
+      </main>
+    )
+  }
+
   return (
     <main>
       <h1>{t.login.title}</h1>
       {!supabase && <p className="error">{t.notConnected}</p>}
-      <form onSubmit={submit} className="form">
+      <form onSubmit={signIn} className="form">
         <label>{t.login.email}
           <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
@@ -31,6 +73,7 @@ export function Login() {
         </label>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" disabled={busy || !supabase}>{t.login.submit}</button>
+        <button type="button" className="link" onClick={() => switchTo('forgot')}>{t.login.forgot}</button>
       </form>
     </main>
   )
