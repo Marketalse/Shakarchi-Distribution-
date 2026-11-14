@@ -16,7 +16,19 @@ check in, survey, order, collect. An AI advisor reads the data later.
 ## Layout
 
 - `supabase/migrations/` — database schema, applied in order
-- `app/` — the field app (added in milestone M3)
+- `app/` — the field app (React, TypeScript, installable PWA)
+  - `src/lib/db.ts` — the database on the phone
+  - `src/lib/sync.ts` — the upload queue
+  - `src/lib/visit.ts` — saving a whole visit in one step
+
+## Run it
+
+```
+cd app
+npm install
+npm test        # offline and sync tests
+npm run dev     # open the app locally
+```
 
 ## Rules that must hold
 
