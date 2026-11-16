@@ -1,0 +1,10 @@
+# Shakarchi Distribution | Project handbook
+Track delivery in [GitHub Issues](https://github.com/Marketalse/Shakarchi-Distribution-/issues). This vault is the reference for requirements, design and team practice. Open **Obsidian Vault** as a folder in Obsidian; use Markdown links on GitHub or in Obsidian.
+
+- [Charter and requirements](Product/Charter.md) · [PWA form workflows](Product/Form-workflows.md)
+- [Roadmap](Delivery/Roadmap.md) · [Ways of working](Delivery/Project-management.md) · [Tracker](Delivery/Tracker.md)
+- [Roles and responsibilities](Operations/Roles.md) · [Contributor and agent skills](Operations/Skills.md)
+- [System design](Technical/System-design.md) · [Database dictionary](Technical/Database.md)
+- [Decisions and risks](Delivery/Decisions-and-risks.md) · [Knowledge and source register](Knowledge/Sources.md)
+
+This is a planning baseline. Phase status and approval live in GitHub; an existing file or a roadmap date is not evidence that a milestone passed.
