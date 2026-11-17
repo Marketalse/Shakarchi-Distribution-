@@ -1,0 +1,6 @@
+# System design
+Current repository: React/TypeScript PWA under `app/`; Supabase SQL under `supabase/migrations/`. The checked-out code includes authentication/password recovery, outlets and visit check-in. Presence of data helpers or migration files does not establish deployment or full four-step readiness.
+
+Target: phone PWA on Vercel → local database and sync queue → Supabase Auth/Postgres/private Storage → read-only reporting in Power BI → later scheduled n8n/Render summaries and Telegram delivery. Costs, vendors, accounts and provider selections remain owner decisions. No infrastructure is provisioned by this setup. The initial PWA slice is intended to write business client profiles, outlets and basic visit records; the survey adds managed brands and linked answers. Orders, payment records, BI and AI are separate slices.
+
+Keep visit UUID and child IDs stable across retries; send parents before children, account for partial writes, show sync state and avoid losing failed records. Separate GPS validation from proof of presence. Use server-side permissions and calculated reporting; verify storage access and remove local data on logout according to agreed retention. Never give browser clients elevated database keys. Review distribution metrics, visit denominators and timezone boundaries before reporting.
