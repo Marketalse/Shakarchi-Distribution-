@@ -32,7 +32,11 @@ async function all<T>(client: SupabaseClient, table: string): Promise<T[]> {
 export function supabaseSource(client: SupabaseClient): ReferenceSource {
   return {
     outlets: () => all<Outlet>(client, 'outlets'),
-    products: () => all<Product>(client, 'products'),
-    surveyBrands: () => all<SurveyBrand>(client, 'survey_brands'),
+    products: () => all<Product>(client, 'solo_active_catalog'),
+    surveyBrands: async () => {
+      const { data, error } = await client.from('survey_brands').select('*').eq('is_own', false).eq('active', true)
+      if (error) throw new Error(error.message)
+      return (data ?? []) as SurveyBrand[]
+    },
   }
 }

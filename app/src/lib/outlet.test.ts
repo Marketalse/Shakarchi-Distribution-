@@ -30,6 +30,14 @@ describe('creating an outlet', () => {
     expect(await db.outlets.count()).toBe(0)
     expect(await pendingCount(db)).toBe(0)
   })
+  it.each([
+    { province: ' ' }, { outlet_type: ' ' }, { lat: Number.NaN }, { lat: 91 }, { lng: 181 },
+  ])('rejects incomplete database fields before queuing %o', async (changes) => {
+    await expect(createOutlet(db, { ...base, ...changes })).rejects.toThrow()
+    expect(await db.outlets.count()).toBe(0)
+    expect(await pendingCount(db)).toBe(0)
+  })
+
 })
 
 describe('spotting duplicates by GPS', () => {

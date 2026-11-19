@@ -1,0 +1,139 @@
+import { fileURLToPath } from 'node:url'
+const { PGlite } = await import(process.env.PGLITE_MODULE_URL || '@electric-sql/pglite')
+import { readFile } from 'node:fs/promises'
+import assert from 'node:assert/strict'
+process.on('uncaughtException',e=>{console.error(e.message,e.where||'',e.stack?.split('\n').filter(l=>l.includes('check.mjs')).join('\n'));process.exit(1)});
+process.on('unhandledRejection', e=>{console.error(e.message,e.where||'',e.stack?.split('\n').filter(l=>l.includes('check.mjs')).join('\n'));process.exit(1)});
+const db = new PGlite()
+const root = fileURLToPath(new URL('../migrations/',import.meta.url))
+await db.exec(`
+create role authenticated;
+create role anon;
+create schema auth;
+create schema storage;
+create table auth.users (id uuid primary key);
+create function auth.uid() returns uuid language sql stable as
+$$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+create table storage.buckets (id text primary key, name text, public boolean, file_size_limit int, allowed_mime_types text[]);
+create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
+alter table storage.objects enable row level security;
+create function storage.foldername(text) returns text[] language sql immutable as
+$$ select string_to_array($1, '/') $$;
+grant usage on schema public, auth, storage to authenticated;
+grant all on storage.objects to authenticated;
+alter default privileges grant all on tables to authenticated;
+alter default privileges grant usage on sequences to authenticated;
+`)
+for(const file of ['001_initial_schema.sql','002_basic_retail_workflows.sql'])await db.exec(await readFile(root+file,'utf8'));
+const owner='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',other='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+const outlet='11111111-1111-1111-1111-111111111111',sku='22222222-2222-2222-2222-222222222222';
+await db.exec(`
+insert into auth.users values ('${owner}'),('${other}');
+insert into profiles(id,full_name,role) values('${owner}','Owner','owner'),('${other}','Other','rep');
+insert into outlets(id,retail_name,lat,lng,province,area,outlet_type,assigned_rep,created_by)
+values('${outlet}','Synthetic Shop',33,44,'Baghdad','Area','Grocery','${owner}','${owner}');
+insert into products(id,sku,brand,product_line,flavour,wholesale_price,cost_price) values('${sku}','SYN1','Synthetic','Line','Variant',10000,6000);
+`);
+for(const file of ['003_solo_database_foundation.sql','004_solo_finance_operations.sql','005_owner_catalog_and_surveys.sql','006_catalog_boundaries.sql'])
+  await db.exec(await readFile(root+file,'utf8'));
+await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${owner}',false);`);
+let sequence=100;
+function id(){return '99999999-9999-4999-8999-'+String(sequence++).padStart(12,'0');}
+async function rpc(name,operation,payload){return (await db.query(`select public.${name}($1,$2) as result`,[operation,JSON.stringify(payload)])).rows[0].result;}
+async function balances(order){return(await db.query('select * from solo_invoice_balances where id=$1',[order])).rows[0];}
+const visit=id(),order=id();
+const payload={outlet_id:outlet,visit_id:visit,terms_days:7,items:[{sku_id:sku,quantity:10,price:10000}],initial_amount:60000,method:'cash'};
+const issued=await rpc('issue_solo_invoice',order,payload);
+assert.deepEqual(await rpc('issue_solo_invoice',order,payload),issued);
+await assert.rejects(rpc('issue_solo_invoice',order,{...payload,initial_amount:50000}),/different payload/);
+assert.equal(Number((await balances(order)).outstanding),40000);
+assert.equal((await db.query('select count(*)::int as n from reminder_history')).rows[0].n,1);
+const bad=id();
+await assert.rejects(rpc('issue_solo_invoice',bad,{...payload,visit_id:id(),items:[{sku_id:sku,quantity:2,price:1}]}),/price or quantity/);
+assert.equal((await db.query('select count(*)::int as n from orders where id=$1',[bad])).rows[0].n,0);
+const payment=id(),receipt={order_id:order,outlet_id:outlet,kind:'receipt',amount:40000,method:'cash'};
+const posted=await rpc('post_solo_collection',payment,receipt);
+await rpc('post_solo_collection',payment,receipt);
+assert.equal((await balances(order)).payment_status,'Paid');
+assert.equal((await db.query('select status from collection_reminders where order_id=$1',[order])).rows[0].status,'settled');
+await assert.rejects(rpc('post_solo_collection',id(),receipt),/exceeds/);
+const refund=id();
+await rpc('post_solo_collection',refund,{...receipt,kind:'refund',receipt_id:posted.entry_id,amount:5000,reason:'Synthetic refund'});
+assert.equal(Number((await balances(order)).outstanding),5000);
+assert.equal((await db.query('select status from collection_reminders where order_id=$1',[order])).rows[0].status,'pending');
+await assert.rejects(rpc('post_solo_collection',id(),{...receipt,kind:'refund',receipt_id:posted.entry_id,amount:36000,reason:'Too much'}),/exceeds/);
+const initial=(await db.query("select id from payments where operation_id=$1",[order])).rows[0].id;
+const correction=id();
+await rpc('post_solo_collection',correction,{...receipt,kind:'correction',receipt_id:initial,amount:50000,reason:'Correct amount'});
+assert.equal(Number((await balances(order)).outstanding),15000);
+await assert.rejects(rpc('post_solo_collection',id(),{...receipt,kind:'correction',receipt_id:initial,amount:50000,reason:'Again'}),/prior correction/);
+await assert.rejects(db.query('update payments set amount=1 where id=$1',[initial]),/permission denied/);
+assert.equal(Number((await db.query('select amount from payments where id=$1',[initial])).rows[0].amount),60000);
+const future=new Date(Date.now()+7*86400000).toISOString();
+await rpc('reschedule_solo_reminder',id(),{order_id:order,scheduled_at:future});
+const rows=await db.query('select * from reminder_history where order_id=$1',[order]);
+assert.equal(rows.rows.at(-1).reason,'rescheduled');
+await assert.rejects(rpc('reschedule_solo_reminder',id(),{order_id:order,scheduled_at:'2000-01-01T00:00:00Z'}),/Future/);
+await assert.rejects(rpc('post_solo_collection',id(),{...receipt,outlet_id:other}),/mismatch/);
+const competitorImport=id();
+await rpc('import_solo_data',competitorImport,{kind:'brands',rows:[{name:'Approved competitor',is_own:false}]});
+const competitorBrand=(await db.query("select id from survey_brands where name='Approved competitor'")).rows[0].id;
+await rpc('import_solo_data',id(),{kind:'products',rows:[
+ {sku:'COMP-1',product_line:'Competitor line',flavour:'Variant',brand_id:competitorBrand,wholesale_price:5000},
+ {sku:'COMP-2',product_line:'Competitor line',flavour:'Other',brand_id:competitorBrand}
+]});
+const competitorProduct=(await db.query("select id from products where sku='COMP-1'")).rows[0].id;
+assert.equal((await db.query('select * from solo_active_catalog where id=$1',[competitorProduct])).rows.length,0);
+assert.equal((await db.query('select * from solo_competitor_catalog')).rows.length,2);
+const ownBrand=(await db.query('select brand_id from products where id=$1',[sku])).rows[0].brand_id;
+await assert.rejects(db.query('update products set is_own_brand=true where id=$1',[competitorProduct]),/classification/);
+await assert.rejects(db.query('update survey_brands set is_own=true where id=$1',[competitorBrand]),/associated products/);
+const competitorAttempt=id();
+await assert.rejects(rpc('issue_solo_invoice',competitorAttempt,{...payload,visit_id:id(),items:[{sku_id:competitorProduct,quantity:1,price:5000}]}),/Competitor products/);
+assert.equal((await db.query('select * from orders where id=$1',[competitorAttempt])).rows.length,0);
+await db.exec('reset role');
+assert.equal((await db.query('select * from wsd_private.operations where id=$1',[competitorAttempt])).rows.length,0);
+await db.exec('set role authenticated');
+await assert.rejects(rpc('import_solo_data',id(),{kind:'observations',rows:[{
+ outlet_id:outlet,visit_id:id(),kind:'competitor_price',brand_id:ownBrand,product_id:sku,price:100
+}]}),/active competitor/);
+await rpc('import_solo_data',id(),{kind:'observations',rows:[{
+ outlet_id:outlet,visit_id:id(),kind:'competitor_price',brand_id:competitorBrand,product_id:competitorProduct,price:5000
+}]});
+assert.equal((await db.query('select * from market_observations')).rows.length,1);
+const version=id(),questions=[{id:'availability',label:'Available?',type:'boolean',required:true},{id:'facings',label:'Facings',type:'number',required:true}];
+await rpc('publish_solo_survey',version,{title:'Shelf check',questions});
+const run={brand_id:competitorBrand,product_id:competitorProduct,outlet_id:outlet,visit_id:visit,version_id:version,answers:{availability:false,facings:0}};
+await rpc('submit_solo_survey',id(),run);
+await assert.rejects(rpc('submit_solo_survey',id(),{...run,answers:{availability:'yes',facings:2}}),/Invalid answer/);
+await assert.rejects(rpc('submit_solo_survey',id(),{...run,answers:{facings:2}}),/Required/);
+const brandImport=id();
+await rpc('import_solo_data',brandImport,{kind:'brands',rows:[{name:'Import Brand',is_own:true}]});
+const brand=(await db.query("select id from survey_brands where name='Import Brand'")).rows[0].id;
+await assert.rejects(rpc('import_solo_data',id(),{kind:'products',rows:[
+ {sku:'SYN2',product_line:'L2',flavour:'V2',brand_id:brand,wholesale_price:5000},
+ {sku:'SYN3',product_line:'L3',flavour:'V3',brand_id:brand,wholesale_price:-1}]}),/Valid SKU/);
+assert.equal((await db.query("select count(*)::int as n from products where sku='SYN2'")).rows[0].n,0);
+await db.query('update survey_brands set active=false where id=(select brand_id from products where id=$1)',[sku]);
+await assert.rejects(rpc('issue_solo_invoice',id(),{...payload,visit_id:id()}),/inactive/);
+await db.exec(`select set_config('request.jwt.claim.sub','${other}',false);`);
+assert.equal((await db.query('select * from solo_invoice_balances')).rows.length,0);
+await assert.rejects(db.query("insert into survey_brands(name,is_own) values('Unauthorized brand',false)"),/row-level security/);
+assert.equal((await db.query('update products set active=false where id=$1 returning id',[sku])).rows.length,0);
+assert.equal((await db.query('select * from products')).rows.length,0);
+for(const name of ['issue_solo_invoice','post_solo_collection','publish_solo_survey','reschedule_solo_reminder','import_solo_data'])
+  await assert.rejects(rpc(name,id(),{}),/Owner access/);
+await db.exec('reset role;set role anon;');
+await assert.rejects(rpc('post_solo_collection',id(),receipt),/permission denied/);
+console.log('PASS · migrations 001–006 · classification consistency · competitor invoice rejection · competitor-only surveys · invoice retry/payload/rollback · receipts/refunds/corrections · reminder lifecycle · immutable history · survey typing · atomic imports · inactive brands · owner/anon isolation');
+await db.exec('reset role');
+const undo=await readFile(fileURLToPath(new URL('../rollbacks/006_catalog_boundaries.sql',import.meta.url)),'utf8');
+await assert.rejects(db.exec(undo),/Deactivate competitor products/);
+await db.exec('rollback');
+await db.query('update products set active=false where not is_own_brand');
+const originalCount=(await db.query('select count(*)::int as n from products')).rows[0].n;
+await db.exec(undo);
+assert.equal((await db.query('select count(*)::int as n from products')).rows[0].n,originalCount);
+assert.equal(Number((await db.query('select outstanding from solo_invoice_balances where id=$1',[order])).rows[0].outstanding),15000);
+console.log('PASS · behavioral rollback preserves product rows and invoice balances; active competitors require deactivation.');
+await db.close();

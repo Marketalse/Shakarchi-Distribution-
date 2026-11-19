@@ -17,25 +17,25 @@ export function Outlets({ version }: { version: number }) {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return outlets
-    return outlets.filter((o) => o.retail_name.toLowerCase().includes(q) || o.area.toLowerCase().includes(q))
+    return outlets.filter((o) => o.retail_name.toLowerCase().includes(q) || o.area.toLowerCase().includes(q) || (o.owner_phone ?? '').includes(q))
   }, [outlets, query])
 
   return (
     <main>
       <div className="row">
-        <h1>{t.outlets}</h1>
-        <Link className="button primary" to="/outlets/new">{t.newOutlet}</Link>
+        <h1>Retails</h1>
+        <Link className="button primary" to="/outlets/new">+ New retail</Link>
       </div>
       <input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} />
       {outlets.length === 0 ? (
-        <p className="muted">{t.noOutlets}</p>
+        <div className="empty"><img src="/wireframe/retails.svg" alt="" /><h2>Your retail list starts here</h2><p>Add your first client to take orders and collect market data.</p></div>
       ) : shown.length === 0 ? (
         <p className="muted">{t.noMatch}</p>
       ) : (
         <ul className="list">
           {shown.map((o) => (
             <li key={o.id}>
-              <Link to={`/visit/${o.id}`}>
+              <Link to={`/retails/${o.id}`}>
                 <span>
                   <strong>{o.retail_name}</strong>
                   <br />
