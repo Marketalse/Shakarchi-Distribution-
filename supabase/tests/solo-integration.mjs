@@ -34,7 +34,7 @@ insert into outlets(id,retail_name,lat,lng,province,area,outlet_type,assigned_re
 values('${outlet}','Synthetic Shop',33,44,'Baghdad','Area','Grocery','${owner}','${owner}');
 insert into products(id,sku,brand,product_line,flavour,wholesale_price,cost_price) values('${sku}','SYN1','Synthetic','Line','Variant',10000,6000);
 `);
-for(const file of ['003_solo_database_foundation.sql','004_solo_finance_operations.sql','005_owner_catalog_and_surveys.sql','006_catalog_boundaries.sql'])
+for(const file of ['003_solo_database_foundation.sql','004_solo_finance_operations.sql','005_owner_catalog_and_surveys.sql','006_catalog_boundaries.sql','007_product_brand_validation.sql'])
   await db.exec(await readFile(root+file,'utf8'));
 await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${owner}',false);`);
 let sequence=100;
@@ -75,6 +75,12 @@ const rows=await db.query('select * from reminder_history where order_id=$1',[or
 assert.equal(rows.rows.at(-1).reason,'rescheduled');
 await assert.rejects(rpc('reschedule_solo_reminder',id(),{order_id:order,scheduled_at:'2000-01-01T00:00:00Z'}),/Future/);
 await assert.rejects(rpc('post_solo_collection',id(),{...receipt,outlet_id:other}),/mismatch/);
+await assert.rejects(db.query(
+ "insert into products(sku,product_line,flavour,wholesale_price,brand) values('MISSING-BRAND','Test','Missing',100,'Typed name only')"
+),error=>error.code==='23502' && /Choose a brand in brand_id/.test(error.message));
+await assert.rejects(db.query(
+ "insert into products(sku,product_line,flavour,wholesale_price,brand_id) values('UNKNOWN-BRAND','Test','Unknown',100,$1)",[id()]
+),error=>error.code==='23503' && /does not exist/.test(error.message));
 const competitorImport=id();
 await rpc('import_solo_data',competitorImport,{kind:'brands',rows:[{name:'Approved competitor',is_own:false}]});
 const competitorBrand=(await db.query("select id from survey_brands where name='Approved competitor'")).rows[0].id;
@@ -125,7 +131,7 @@ for(const name of ['issue_solo_invoice','post_solo_collection','publish_solo_sur
   await assert.rejects(rpc(name,id(),{}),/Owner access/);
 await db.exec('reset role;set role anon;');
 await assert.rejects(rpc('post_solo_collection',id(),receipt),/permission denied/);
-console.log('PASS · migrations 001–006 · classification consistency · competitor invoice rejection · competitor-only surveys · invoice retry/payload/rollback · receipts/refunds/corrections · reminder lifecycle · immutable history · survey typing · atomic imports · inactive brands · owner/anon isolation');
+console.log('PASS · migrations 001–007 · actionable brand validation · classification consistency · competitor invoice rejection · competitor-only surveys · invoice retry/payload/rollback · receipts/refunds/corrections · reminder lifecycle · immutable history · survey typing · atomic imports · inactive brands · owner/anon isolation');
 await db.exec('reset role');
 const undo=await readFile(fileURLToPath(new URL('../rollbacks/006_catalog_boundaries.sql',import.meta.url)),'utf8');
 await assert.rejects(db.exec(undo),/Deactivate competitor products/);
