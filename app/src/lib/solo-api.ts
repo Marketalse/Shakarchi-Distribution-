@@ -48,7 +48,7 @@ export function soloApi(client: SupabaseClient) {
       questions: { id: string; label: string; type: 'text' | 'number' | 'boolean' | 'choice'; required: boolean; options?: string[] }[]
     }>) => call<{ version_id: string }>('publish_solo_survey', command),
     submitSurvey: (command: Operation<{
-      version_id: string; outlet_id: string; visit_id: string
+      version_id: string; outlet_id: string; visit_id: string; brand_id: string; product_id?: string
       answers: Record<string, string | number | boolean>
     }>) => call<{ run_id: string }>('submit_solo_survey', command),
     importData: (command: Operation<{

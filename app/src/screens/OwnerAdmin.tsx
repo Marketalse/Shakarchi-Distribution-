@@ -34,6 +34,7 @@ export function OwnerAdmin() {
   const [orderId, setOrderId] = useState(params.get('invoice') || '')
   const [preview, setPreview] = useState<{ kind: 'brands' | 'products' | 'observations'; rows: Record<string, unknown>[] }>()
   const [editProduct, setEditProduct] = useState<Row>()
+  const [productBrandId, setProductBrandId] = useState('')
   const [versionId, setVersionId] = useState('')
   // A failed financial request retains its exact payload and operation UUID.
   type Pending = { label: string; command: Operation<unknown> } | null
@@ -55,6 +56,7 @@ export function OwnerAdmin() {
   }, [revision])
 
   const records = (name: string) => rows[name] ?? []
+  const productBrand = records('survey_brands').find(row => row.id === productBrandId)
   const invoice = records('solo_invoice_balances').find(row => row.id === orderId)
   const version = records('survey_versions').find(row => row.id === versionId)
   const ledger = records('payments').filter(row => row.order_id === orderId)
@@ -125,7 +127,9 @@ export function OwnerAdmin() {
         case 'product': {
           const product = {
             sku: get('sku'), product_line: get('product_line'), flavour: get('flavour'), brand_id: get('brand_id'),
-            wholesale_price: get('wholesale_price'), cost_price: get('cost_price') || null,
+            is_own_brand: Boolean(productBrand?.is_own),
+            wholesale_price: productBrand?.is_own ? get('wholesale_price') : null,
+            cost_price: productBrand?.is_own ? get('cost_price') || null : null,
             active: get('active') === 'true',
           }
           const brand = records('survey_brands').find(row => row.id === product.brand_id)
@@ -159,7 +163,7 @@ export function OwnerAdmin() {
             return [[question.id, question.type === 'boolean' ? value === 'true' : question.type === 'number' ? Number(value) : value]]
           }))
           await perform('Survey answers', {
-            version_id: versionId, outlet_id: get('outlet_id'), visit_id: get('visit_id'), answers,
+            version_id: versionId, outlet_id: get('outlet_id'), visit_id: get('visit_id'), brand_id: get('brand_id'), answers,
           }, command => api.submitSurvey(command as Parameters<typeof api.submitSurvey>[0]))
           break
         }
@@ -251,29 +255,29 @@ export function OwnerAdmin() {
     </>}
     {tab === 'Products' && <>
       <ul>{records('products').map(row => <li key={row.id}>
-        <button onClick={() => setEditProduct(row)}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} IQD · {row.active ? 'Active' : 'Inactive'}</button>
+        <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} IQD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
       </li>)}</ul>
       <h2>{editProduct ? 'Edit product' : 'Add product'}</h2>
-      {editProduct && <button onClick={() => setEditProduct(undefined)}>New product</button>}
+      {editProduct && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
       <form {...formProps} data-kind="product" key={editProduct?.id || 'new'}>
         <label>SKU<input name="sku" defaultValue={format(editProduct?.sku === undefined ? '' : editProduct.sku)} required /></label>
-        <label>Product name<input name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
+        <label>Product line<input name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
         <label>Variant<input name="flavour" defaultValue={String(editProduct?.flavour || '')} required /></label>
-        <label>Brand<select name="brand_id" defaultValue={String(editProduct?.brand_id || '')} required>
-          <option value="">Choose brand</option>{records('survey_brands').map(row => <option key={row.id} value={row.id}>{format(row.name)}</option>)}
+        <label>Brand<select name="brand_id" value={productBrandId} onChange={e => setProductBrandId(e.target.value)} required>
+          <option value="">Choose brand</option>{records('survey_brands').map(row => <option key={row.id} value={row.id}>{format(row.name)} · {row.is_own ? 'Our catalog' : 'Competitor'}</option>)}
         </select></label>
-        <label>Wholesale · IQD<input name="wholesale_price" type="number" min="0" step="0.01" required defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
-        <label>Cost · IQD<input name="cost_price" type="number" min="0" step="0.01" defaultValue={String(editProduct?.cost_price ?? '')} /></label>
+        <label>Wholesale · IQD<input name="wholesale_price" type="number" min="0" step="0.01" required={Boolean(productBrand?.is_own)} disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
+        <label>Cost · IQD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
         <label>Activation<select name="active" defaultValue={String(editProduct?.active ?? true)}><option value="true">Active</option><option value="false">Inactive</option></select></label>
         {submitButton}
       </form>
     </>}
     {tab === 'Brands' && <>
-      <ul>{records('survey_brands').map(row => <li key={row.id}>{format(row.name)} · {row.active ? 'Active' : 'Inactive'}
+      <ul>{records('survey_brands').map(row => <li key={row.id}>{format(row.name)} · {row.is_own ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}
         <button disabled={busy} onClick={() => void toggleBrand(row)}>Toggle activation</button></li>)}</ul>
       <form {...formProps} data-kind="brand">
         <label>Brand name<input name="name" required /></label>
-        <label>Ownership<select name="is_own"><option value="true">Own brand</option><option value="false">Competitor</option></select></label>
+        <label>Classification<select name="is_own"><option value="true">Our catalog</option><option value="false">Competitor</option></select></label>
         {submitButton}
       </form>
     </>}
@@ -291,6 +295,10 @@ export function OwnerAdmin() {
       {version && <form {...formProps} data-kind="run" key={versionId}>
         <label>Client<select name="outlet_id" required><option value="">Choose client</option>{records('outlets').map(row =>
           <option key={row.id} value={row.id}>{format(row.retail_name)}</option>)}</select></label>
+        <label>Competitor brand<select name="brand_id" required><option value="">Choose competitor</option>
+          {records('survey_brands').filter(row => !row.is_own && row.active).map(row =>
+            <option key={row.id} value={row.id}>{format(row.name)}</option>)}
+        </select></label>
         <label>Visit UUID · reuse for this shop stop<input name="visit_id" defaultValue={surveyVisitId} required /></label>
         {(version.questions as { id: string; label: string; type: string; required: boolean; options?: string[] }[]).map(question =>
           <label key={question.id}>{question.label}{question.type === 'choice' || question.type === 'boolean'
@@ -315,7 +323,7 @@ export function OwnerAdmin() {
       </section>}
     </>}
     {tab === 'Observations' && <>
-      <p>Imports accept competitor_price, new_brand and promotion observations. Supply outlet_id and visit_id, then price or offer, availability, facings and shelf_width_cm.</p>
+      <p>Imports accept competitor_price, new_brand and promotion observations. Supply outlet_id, visit_id, approved competitor brand_id and product_id, then price or offer, availability, facings and shelf_width_cm.</p>
       <ul>{records('market_observations').map(row => <li key={row.id}>
         {format(row.brand)} · {format(row.model)} · {format(row.price)} IQD · {format(row.offer)} · {date(row.created_at)}
         <br />Availability {format(row.available)} · Facings {format(row.facings)} · Shelf cm {format(row.shelf_width_cm)}

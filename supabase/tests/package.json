@@ -1,0 +1,7 @@
+{
+  "name": "wsd-database-regressions",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node solo-integration.mjs"},
+  "devDependencies": {"@electric-sql/pglite": "0.5.16"}
+}

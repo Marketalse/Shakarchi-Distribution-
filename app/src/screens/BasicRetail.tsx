@@ -249,6 +249,19 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
 }
 
 function SurveyForm({ outletId }: { outletId: string }) {
+  const [brandId, setBrandId] = useState('')
+  const [productId, setProductId] = useState('')
+  const competitors = useRows(async () => {
+    if (!supabase) throw Error('The database connection is unavailable.')
+    const [brands, products] = await Promise.all([
+      supabase.from('survey_brands').select('id,name').eq('is_own', false).eq('active', true).order('name'),
+      supabase.from('solo_competitor_catalog').select('id,brand_id,product_line,flavour').order('product_line'),
+    ])
+    if (brands.error) throw brands.error
+    if (products.error) throw products.error
+    return { brands: brands.data, products: products.data }
+  }, 'competitor-definitions')
+
   const [kind, setKind] = useState('competitor_price')
   const [photo, setPhoto] = useState<File>()
   const [busy, setBusy] = useState(false)
@@ -264,7 +277,9 @@ function SurveyForm({ outletId }: { outletId: string }) {
     const value = (name: string) => String(values.get(name) ?? '').trim()
     const promotion = kind === 'promotion'
     const fields = {
-      outlet_id: outletId, kind, brand: value('brand'), model: value('model'),
+      outlet_id: outletId, kind, brand_id: brandId, product_id: productId,
+      brand: competitors.data?.brands.find(item => item.id === brandId)?.name ?? '',
+      model: competitors.data?.products.find(item => item.id === productId)?.product_line ?? '',
       price: promotion ? null : Number(value('price')), offer: promotion ? value('offer') : null,
       available: value('available') ? value('available') === 'true' : null,
       facings: value('facings') ? Number(value('facings')) : null,
@@ -303,6 +318,7 @@ function SurveyForm({ outletId }: { outletId: string }) {
       setPhoto(undefined)
       retry.current = null
       setSuccess('Survey saved.')
+      setProductId('')
     } catch (failure) {
       setError(message(failure))
     } finally {
@@ -321,8 +337,17 @@ function SurveyForm({ outletId }: { outletId: string }) {
         <option value="new_brand">New brand</option>
         <option value="promotion">Current promotion</option>
       </select></label>
-      <label>Brand<input name="brand" required maxLength={100} /></label>
-      <label>Model<input name="model" required maxLength={100} /></label>
+      <label>Competitor brand<select required value={brandId} onChange={e => { setBrandId(e.target.value); setProductId('') }}>
+        <option value="">Choose competitor</option>
+        {competitors.data?.brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+      </select></label>
+      <label>Competitor product<select required value={productId} onChange={e => setProductId(e.target.value)}>
+        <option value="">Choose product</option>
+        {competitors.data?.products.filter(product => product.brand_id === brandId).map(product =>
+          <option key={product.id} value={product.id}>{product.product_line} · {product.flavour}</option>)}
+      </select></label>
+      {competitors.error && <p className="error" role="alert">{competitors.error}</p>}
+      {competitors.data?.brands.length === 0 && <p className="muted">Add approved competitor definitions in owner tools before surveying.</p>}
       {kind === 'promotion' ? <>
         <label>Offer<input name="offer" required maxLength={1000} /></label>
         <label>Offer photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhoto(e.target.files?.[0])} /></label>
