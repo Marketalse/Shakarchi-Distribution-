@@ -10,8 +10,8 @@ import { en as t } from '../i18n/en'
 export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => void }) {
   const navigate = useNavigate()
   const [f, setF] = useState({
-    retail_name: '', owner_name: '', owner_phone: '', shop_phone: '',
-    province: PROVINCES[0], area: '', address: '', outlet_type: OUTLET_TYPES[0],
+    retail_name: '', owner_name: '', owner_phone: '', shop_phone: '', staff_name: '', staff_phone: '',
+    province: '', area: '', address: '', outlet_type: '',
     relationship: 'prospect' as Relationship,
   })
   const [pos, setPos] = useState<Position | null>(null)
@@ -37,11 +37,12 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
       const outlet = await createOutlet(db, {
         ...f,
         owner_name: f.owner_name || undefined, owner_phone: f.owner_phone || undefined,
-        shop_phone: f.shop_phone || undefined, address: f.address || undefined,
+        shop_phone: f.shop_phone || undefined, staff_name: f.staff_name || undefined,
+        staff_phone: f.staff_phone || undefined, address: f.address || undefined,
         lat: pos.lat, lng: pos.lng, assigned_rep: repId,
       })
       onSaved()
-      navigate(`/visit/${outlet.id}`, { replace: true })
+      navigate(`/retails/${outlet.id}`, { replace: true })
     } catch (e) { setError((e as Error).message) }
   }
 
@@ -54,7 +55,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <ul className="list">
           {dupes.map((d) => (
             <li key={d.id}>
-              <button className="wide" onClick={() => navigate(`/visit/${d.id}`, { replace: true })}>
+              <button className="wide" onClick={() => navigate(`/retails/${d.id}`, { replace: true })}>
                 <strong>{d.retail_name}</strong> · {t.form.metres(d.distance_m)} — {t.form.duplicateUse}
               </button>
             </li>
@@ -71,7 +72,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
       <form onSubmit={submit} className="form">
         <label>{t.form.name}<input required value={f.retail_name} onChange={set('retail_name')} /></label>
         <label>{t.form.type}
-          <select value={f.outlet_type} onChange={set('outlet_type')}>{OUTLET_TYPES.map((x) => <option key={x}>{x}</option>)}</select>
+          <select required value={f.outlet_type} onChange={set('outlet_type')}><option value="">Choose outlet type</option>{OUTLET_TYPES.map((x) => <option key={x}>{x}</option>)}</select>
         </label>
         <label>{t.form.relationship}
           <select value={f.relationship} onChange={set('relationship')}>
@@ -80,11 +81,13 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
           </select>
         </label>
         <label>{t.form.province}
-          <select value={f.province} onChange={set('province')}>{PROVINCES.map((x) => <option key={x}>{x}</option>)}</select>
+          <select required value={f.province} onChange={set('province')}><option value="">Choose province</option>{PROVINCES.map((x) => <option key={x}>{x}</option>)}</select>
         </label>
         <label>{t.form.area}<input required value={f.area} onChange={set('area')} /></label>
         <label>{t.form.owner}<input value={f.owner_name} onChange={set('owner_name')} /></label>
         <label>{t.form.ownerPhone}<input type="tel" inputMode="tel" value={f.owner_phone} onChange={set('owner_phone')} /></label>
+        <label>Staff name<input value={f.staff_name} onChange={set('staff_name')} /></label>
+        <label>Staff phone<input type="tel" value={f.staff_phone} onChange={set('staff_phone')} /></label>
         <label>{t.form.shopPhone}<input type="tel" inputMode="tel" value={f.shop_phone} onChange={set('shop_phone')} /></label>
         <label>{t.form.address}<input value={f.address} onChange={set('address')} /></label>
         <div>

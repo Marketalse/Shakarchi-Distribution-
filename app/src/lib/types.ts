@@ -18,6 +18,7 @@ export interface Outlet {
   retail_name: string
   owner_name?: string
   staff_name?: string
+  staff_phone?: string
   owner_phone?: string
   shop_phone?: string
   lat: number
