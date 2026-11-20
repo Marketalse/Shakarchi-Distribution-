@@ -316,5 +316,13 @@ await usdRpc('submit_solo_observation',observation,observationPayload);
 assert.equal((await usdDb.query('select count(*)::int as n from market_observations where id=$1',[observation])).rows[0].n,1);
 await assert.rejects(usdRpc('submit_solo_observation',id(),{...observationPayload,brand_id:usdBrand,product_id:sku}),/competitor/);
 await assert.rejects(usdRpc('submit_solo_observation',id(),{...observationPayload,price:'9.501'}),/two decimals/);
+const editedClient=(await usdDb.query('select * from outlets where id=$1',[outlet])).rows[0];
+assert.equal(editedClient.lat,33.25);
+await assert.rejects(usdRpc('update_solo_client',id(),{...editPayload,expected_updated_at:editedClient.updated_at.toISOString(),fields:{lat:34}}),/Unsupported/);
+await assert.rejects(usdRpc('update_solo_client',id(),editPayload),/changed/);
+await assert.rejects(usdRpc('submit_solo_observation',id(),{...observationPayload,shelf_width_cm:'NaN'}),/Shelf width/);
+await usdDb.exec("select set_config('request.jwt.claim.sub','" + other + "',false);");
+await assert.rejects(usdRpc('update_solo_client',id(),editPayload),/Owner access/);
+await assert.rejects(usdRpc('submit_solo_observation',id(),observationPayload),/Owner access/);
 console.log('PASS · client identity-preserving edit and replay · competitor observation precision/targeting/replay.');
 await usdDb.close()

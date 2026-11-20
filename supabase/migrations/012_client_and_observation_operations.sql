@@ -31,7 +31,7 @@ grant execute on function public.update_solo_client(uuid,jsonb) to authenticated
 
 create function public.submit_solo_observation(p_operation uuid,p_request jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare prior jsonb; price numeric;
+declare prior jsonb; price numeric; facings numeric; width numeric;
 begin
  prior:=wsd_private.begin_operation(p_operation,jsonb_build_object('action','market_observation','payload',p_request));
  if prior is not null then return prior; end if;
@@ -39,8 +39,11 @@ begin
  price:=(p_request->>'price')::numeric;
  if price is not null and (price<0 or price='NaN'::numeric or price<>round(price,2)) then
   raise exception 'Use a nonnegative USD price with at most two decimals' using errcode='22023'; end if;
- if (p_request->>'facings')::numeric<0 or (p_request->>'facings')::numeric<>trunc((p_request->>'facings')::numeric) then
+ facings:=(p_request->>'facings')::numeric; width:=(p_request->>'shelf_width_cm')::numeric;
+ if facings is not null and (facings<0 or facings='NaN'::numeric or facings>2147483647 or facings<>trunc(facings)) then
   raise exception 'Facings must be a nonnegative whole number' using errcode='22023'; end if;
+ if width is not null and (width<0 or width='NaN'::numeric or width='Infinity'::numeric or width<>round(width,2)) then
+  raise exception 'Shelf width must be a nonnegative number with at most two decimals' using errcode='22023'; end if;
  perform public.start_solo_visit((p_request->>'visit_id')::uuid,(p_request->>'outlet_id')::uuid,'survey');
  insert into public.market_observations(id,outlet_id,visit_id,created_by,kind,brand_id,product_id,brand,model,
   price,offer,available,facings,shelf_width_cm,photo_path,currency)

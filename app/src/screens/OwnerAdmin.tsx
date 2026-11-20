@@ -398,7 +398,14 @@ export function OwnerAdmin() {
     </>}
     {tab === 'Observations' && <>
       <h2>Completed survey forms</h2>
-      <ul>{records('survey_runs').map(row => <li key={row.id}>{format(records('survey_versions').find(v => v.id === row.version_id)?.title)} · {date(row.created_at)}<pre>{JSON.stringify(row.answers,null,2)}</pre></li>)}</ul>
+      <ul>{records('survey_runs').map(row => {
+        const form = records('survey_versions').find(v => v.id === row.version_id)
+        const client = records('outlets').find(v => v.id === row.outlet_id)
+        const brand = records('survey_brands').find(v => v.id === row.brand_id)
+        return <li key={row.id}><strong>{format(form?.title)}</strong> · {format(client?.retail_name)} · {format(brand?.name)} · {date(row.created_at)}
+          <dl>{((form?.questions ?? []) as {id:string;label:string}[]).map(q => <div key={q.id}><dt>{q.label}</dt><dd>{format((row.answers as Record<string,unknown>)?.[q.id])}</dd></div>)}</dl>
+        </li>
+      })}</ul>
       <p>Imports accept competitor_price, new_brand and promotion observations. Supply outlet_id, visit_id, approved competitor brand_id and product_id, then price or offer, availability, facings and shelf_width_cm.</p>
       <ul>{records('market_observations').map(row => <li key={row.id}>
         {format(row.brand)} · {format(row.model)} · {format(row.price)} USD · {format(row.offer)} · {date(row.created_at)}

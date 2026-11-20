@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Outlet } from '../lib/types'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
-import { operation, soloApi } from '../lib/solo-api'
+import { soloApi } from '../lib/solo-api'
+import { captureOperation, surveyAnswers } from '../lib/capture'
 
 export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () => void }) {
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
@@ -13,7 +14,11 @@ export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () =>
     const fields = Object.fromEntries([...values.entries()].map(([key, value]) => [key, String(value).trim() || null]))
     setBusy(true); setError(''); setNotice('')
     try {
-      await soloApi(supabase).updateClient(operation({ outlet_id: retail.id, expected_updated_at: retail.updated_at, fields }))
+      if (await db.outbox.where('table').equals('outlets').filter(row => row.row_id === retail.id).count()) throw Error('Sync this new client before editing it.')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw Error('Sign in before editing.')
+      const command = await captureOperation(db, session.user.id, 'update_solo_client', { outlet_id: retail.id, expected_updated_at: retail.updated_at, fields })
+      await soloApi(supabase).updateClient(command)
       const { data, error } = await supabase.from('outlets').select('*').eq('id', retail.id).single()
       if (error) throw error
       await db.outlets.put(data as Outlet)
@@ -38,14 +43,15 @@ export function DynamicSurvey({ outletId, visitId }: { outletId: string; visitId
   const [versionId, setVersionId] = useState(''), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
   useEffect(() => {
     let active = true
+    if (!supabase) { setError('Database connection unavailable.'); return }
     void Promise.all([
-      supabase!.from('survey_versions').select('id,title,questions').order('created_at', { ascending: false }),
-      supabase!.from('survey_brands').select('id,name').eq('is_own', false).eq('active', true).order('name'),
+      supabase.from('survey_versions').select('id,title,questions').order('created_at', { ascending: false }),
+      supabase.from('survey_brands').select('id,name').eq('is_own', false).eq('active', true).order('name'),
     ]).then(([v,b]) => {
       if (!active) return
       if (v.error || b.error) setError((v.error || b.error)!.message)
       else { setVersions(v.data as Version[]); setBrands(b.data!) }
-    })
+    }).catch(failure => { if (active) setError(String(failure.message)) })
     return () => { active = false }
   }, [])
   const version = versions.find(row => row.id === versionId)
@@ -53,13 +59,13 @@ export function DynamicSurvey({ outletId, visitId }: { outletId: string; visitId
     event.preventDefault()
     if (!supabase || !version || busy) return
     const values = new FormData(event.currentTarget), form = event.currentTarget
-    const answers = Object.fromEntries(version.questions.flatMap(question => {
-      const value = String(values.get('answer:' + question.id) ?? '').trim()
-      return value === '' ? [] : [[question.id, question.type === 'boolean' ? value === 'true' : question.type === 'number' ? Number(value) : value]]
-    }))
     setBusy(true); setError(''); setNotice('')
     try {
-      await soloApi(supabase).submitSurvey(operation({ version_id: version.id, outlet_id: outletId, visit_id: visitId, brand_id: String(values.get('brand_id')), answers }))
+      const answers = surveyAnswers(version.questions, values)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw Error('Sign in before submitting.')
+      const command = await captureOperation(db, session.user.id, 'submit_solo_survey', { version_id: version.id, outlet_id: outletId, visit_id: visitId, brand_id: String(values.get('brand_id')), answers })
+      await soloApi(supabase).submitSurvey(command)
       form.reset(); setNotice('Survey submitted for this client and visit.')
     } catch (failure) { setError(failure instanceof Error ? failure.message : String(failure)) }
     finally { setBusy(false) }
