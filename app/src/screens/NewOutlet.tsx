@@ -15,6 +15,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
     relationship: 'prospect' as Relationship,
   })
   const [pos, setPos] = useState<Position | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
   const [gpsBusy, setGpsBusy] = useState(false)
   const [error, setError] = useState('')
   const [dupes, setDupes] = useState<Nearby[] | null>(null)
@@ -22,13 +23,13 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
 
   async function locate() {
     setGpsBusy(true)
-    setError('')
+    setError(''); setConfirmed(false); setPos(null)
     try { setPos(await getPosition()) } catch (e) { setError((e as Error).message) }
     setGpsBusy(false)
   }
 
   async function save(ignoreDuplicates: boolean) {
-    if (!pos) return setError(t.form.gpsNeeded)
+    if (!pos || !confirmed) return setError('Capture and confirm the store location before saving.')
     if (!ignoreDuplicates) {
       const near = nearbyOutlets(await db.outlets.toArray(), pos.lat, pos.lng, DUPLICATE_RADIUS_M)
       if (near.length > 0) return setDupes(near)
@@ -40,6 +41,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         shop_phone: f.shop_phone || undefined, staff_name: f.staff_name || undefined,
         staff_phone: f.staff_phone || undefined, address: f.address || undefined,
         lat: pos.lat, lng: pos.lng, assigned_rep: repId,
+        location_accuracy: pos.accuracy_m, location_captured_at: pos.captured_at, location_source: 'device_gps',
       })
       onSaved()
       navigate(`/retails/${outlet.id}`, { replace: true })
@@ -93,9 +95,15 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <div>
           <span className="label">{t.form.gps}</span>
           <button type="button" className="wide" onClick={() => void locate()} disabled={gpsBusy}>
-            {gpsBusy ? t.form.gettingGps : pos ? t.form.gpsOk(pos.accuracy_m) : t.form.getGps}
+            {gpsBusy ? 'Capturing…' : 'Capture Current Location'}
           </button>
         </div>
+        {pos && <section className="card">
+          <p>Store location: {pos.lat.toFixed(6)}, {pos.lng.toFixed(6)} · reported accuracy ±{Math.round(pos.accuracy_m)} m</p>
+          <p>Stand at the store before confirming. This destination will be reused for future visits.</p>
+          {pos.accuracy_m > 50 && <p className="warn-text">The location estimate is broad. Move outside and recapture if needed.</p>}
+          <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />These coordinates are the store location</label>
+        </section>}
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row">
           <button type="button" onClick={() => navigate(-1)}>{t.form.cancel}</button>
