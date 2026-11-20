@@ -6,7 +6,7 @@ process.on('uncaughtException',e=>{console.error(e.message,e.where||'',e.stack?.
 process.on('unhandledRejection', e=>{console.error(e.message,e.where||'',e.stack?.split('\n').filter(l=>l.includes('check.mjs')).join('\n'));process.exit(1)});
 const db = new PGlite()
 const root = fileURLToPath(new URL('../migrations/',import.meta.url))
-await db.exec(`
+const setupSQL=`
 create role authenticated;
 create role anon;
 create schema auth;
@@ -23,7 +23,8 @@ grant usage on schema public, auth, storage to authenticated;
 grant all on storage.objects to authenticated;
 alter default privileges grant all on tables to authenticated;
 alter default privileges grant usage on sequences to authenticated;
-`)
+`;
+await db.exec(setupSQL);
 for(const file of ['001_initial_schema.sql','002_basic_retail_workflows.sql'])await db.exec(await readFile(root+file,'utf8'));
 const owner='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',other='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const outlet='11111111-1111-1111-1111-111111111111',sku='22222222-2222-2222-2222-222222222222';
@@ -142,4 +143,103 @@ await db.exec(undo);
 assert.equal((await db.query('select count(*)::int as n from products')).rows[0].n,originalCount);
 assert.equal(Number((await db.query('select outstanding from solo_invoice_balances where id=$1',[order])).rows[0].outstanding),15000);
 console.log('PASS · behavioral rollback preserves product rows and invoice balances; active competitors require deactivation.');
+await assert.rejects(db.exec(await readFile(root+'008_usd_manual_fx.sql','utf8')), /approved currency conversion plan/);
+await db.exec('rollback');
+assert.equal((await db.query("select column_default from information_schema.columns where table_name='products' and column_name='currency'")).rows[0].column_default, "'IQD'::text");
+console.log('PASS · USD cutover refuses existing monetary data without changing its currency.');
 await db.close();
+
+// The USD cutover is tested on a separate empty database.
+const usdDb = new PGlite()
+await usdDb.exec(setupSQL)
+for (const file of ['001_initial_schema.sql', '002_basic_retail_workflows.sql']) {
+  await usdDb.exec(await readFile(root + file, 'utf8'))
+}
+await usdDb.exec("insert into auth.users values ('" + owner + "'), ('" + other + "');" +
+  "insert into profiles(id,full_name,role) values ('" + owner + "','Owner','owner'),('" + other + "','Other','rep');")
+for (const file of [
+  '003_solo_database_foundation.sql', '004_solo_finance_operations.sql',
+  '005_owner_catalog_and_surveys.sql', '006_catalog_boundaries.sql',
+  '007_product_brand_validation.sql', '008_usd_manual_fx.sql',
+]) await usdDb.exec(await readFile(root + file, 'utf8'))
+const usdBrand = id()
+await usdDb.query("insert into survey_brands(id,name,is_own) values($1,'USD Brand',true)", [usdBrand])
+await usdDb.query("insert into products(id,brand_id,product_line,flavour,sku,wholesale_price,cost_price)" +
+  " values($1,$2,'USD line','Variant','USD-SKU',10,6)", [sku, usdBrand])
+await usdDb.query("insert into outlets(id,retail_name,lat,lng,province,area,outlet_type,assigned_rep,created_by)" +
+  " values($1,'USD Shop',33,44,'Baghdad','Test','Retail',$2,$2)", [outlet, owner])
+await assert.rejects(usdDb.query("update products set currency='IQD' where id=$1", [sku]), /usd_only/)
+await usdDb.exec("set role authenticated; select set_config('request.jwt.claim.sub','" + owner + "',false);")
+async function usdRpc(name, operation, request) {
+  return (await usdDb.query('select public.' + name + '($1,$2) as result', [operation, JSON.stringify(request)])).rows[0].result
+}
+const usdInvoice = id()
+const usdRequest = {
+  currency: 'USD', outlet_id: outlet, terms_days: 7, initial_amount: '0', method: 'cash',
+  items: [{ sku_id: sku, quantity: 10, price: '10.00' }],
+}
+await assert.rejects(usdRpc('issue_solo_invoice', id(), { ...usdRequest, currency: 'IQD' }), /USD currency confirmation/)
+await usdRpc('issue_solo_invoice', usdInvoice, usdRequest)
+const rateA = id()
+const rateRequest = {
+  exchange_rate_used: '1500', rate_source: 'Synthetic manual parallel rate',
+  valid_until: new Date(Date.now() + 3600000).toISOString(),
+}
+await usdRpc('publish_solo_fx_rate', rateA, rateRequest)
+assert.deepEqual(await usdRpc('publish_solo_fx_rate', rateA, rateRequest), { rate_version_id: rateA })
+await assert.rejects(usdRpc('publish_solo_fx_rate', id(), { ...rateRequest, exchange_rate_used: '0' }), /positive/)
+const localOperation = id()
+const localRequest = {
+  currency: 'USD', settlement_currency: 'IQD', rate_version_id: rateA,
+  source_amount: '60000', order_id: usdInvoice, outlet_id: outlet, kind: 'receipt', method: 'cash',
+}
+const firstReceipt = await usdRpc('post_solo_collection', localOperation, localRequest)
+const snapshot = (await usdDb.query('select * from payment_fx_snapshots where operation_id=$1', [localOperation])).rows[0]
+assert.equal(Number(snapshot.usd_amount), 40)
+assert.equal(Number(snapshot.exchange_rate_used), 1500)
+const rateB = id()
+await usdRpc('publish_solo_fx_rate', rateB, { ...rateRequest, exchange_rate_used: '1600' })
+assert.deepEqual(await usdRpc('post_solo_collection', localOperation, localRequest), firstReceipt)
+await assert.rejects(usdRpc('post_solo_collection', id(), localRequest), /Rate changed/)
+const secondReceipt = await usdRpc('post_solo_collection', id(), { ...localRequest, rate_version_id: rateB, source_amount: '16000' })
+assert.equal(Number((await usdDb.query('select outstanding from solo_invoice_balances where id=$1', [usdInvoice])).rows[0].outstanding), 50)
+const rateC = id()
+await usdRpc('publish_solo_fx_rate', rateC, { ...rateRequest, exchange_rate_used: '1700' })
+await usdRpc('post_solo_collection', id(), {
+  ...localRequest, kind: 'correction', receipt_id: secondReceipt.entry_id,
+  rate_version_id: rateB, source_amount: '8000', reason: 'Correct original local cash',
+})
+await assert.rejects(usdRpc('post_solo_collection', id(), {
+  ...localRequest, kind: 'correction', receipt_id: firstReceipt.entry_id,
+  rate_version_id: rateC, source_amount: '30000', reason: 'Incorrect revaluation',
+}), /original rate/)
+await usdRpc('post_solo_collection', id(), {
+  ...localRequest, kind: 'refund', receipt_id: firstReceipt.entry_id,
+  rate_version_id: rateC, source_amount: '8500', reason: 'Local refund at current rate',
+})
+assert.equal(Number((await usdDb.query('select outstanding from solo_invoice_balances where id=$1', [usdInvoice])).rows[0].outstanding), 60)
+assert.equal(Number((await usdDb.query('select total from solo_invoice_balances where id=$1', [usdInvoice])).rows[0].total), 100)
+assert.equal(Number((await usdDb.query('select usd_amount from payment_fx_snapshots where operation_id=$1', [localOperation])).rows[0].usd_amount), 40)
+await assert.rejects(usdDb.query('update fx_rate_versions set exchange_rate_used=1 where id=$1', [rateA]), /permission denied/)
+await assert.rejects(usdDb.query('update products set wholesale_price=1 where id=$1', [sku]), /permission denied/)
+await usdRpc('update_solo_product', id(), {
+  id: sku, currency: 'USD', brand_id: usdBrand, sku: 'USD-SKU', product_line: 'USD line',
+  flavour: 'Variant', wholesale_price: '11.00', cost_price: '6.00', active: true,
+})
+assert.equal(Number((await usdDb.query('select total from solo_invoice_balances where id=$1', [usdInvoice])).rows[0].total), 100)
+await assert.rejects(usdRpc('import_solo_data', id(), { kind: 'products', rows: [] }), /USD currency confirmation/)
+await usdDb.exec('reset role')
+const expiredRate = id()
+// Insert an already-expired fixture as database administrator to test stale-rate denial.
+await usdDb.query("insert into fx_rate_versions(id,exchange_rate_used,rate_timestamp,valid_until,rate_source,created_by)" +
+  " values($1,1800,now()-interval '2 hours',now()-interval '1 hour','Expired test fixture',$2)", [expiredRate, owner])
+await usdDb.query('update wsd_private.fx_current_rate set rate_id=$1', [expiredRate])
+await usdDb.exec("set role authenticated; select set_config('request.jwt.claim.sub','" + owner + "',false);")
+await assert.rejects(usdRpc('post_solo_collection', id(), { ...localRequest, rate_version_id: expiredRate }), /expired/)
+assert.deepEqual(await usdRpc('post_solo_collection', localOperation, localRequest), firstReceipt)
+await usdDb.exec("select set_config('request.jwt.claim.sub','" + other + "',false);")
+assert.equal((await usdDb.query('select * from fx_rate_versions')).rows.length, 0)
+await assert.rejects(usdRpc('publish_solo_fx_rate', id(), rateRequest), /Owner access/)
+await assert.rejects(usdRpc('post_solo_collection', id(), localRequest), /Owner access/)
+console.log('PASS · USD-only amounts · currency-intent checks · immutable manual rates and settlement snapshots · stale-rate rejection · partial settlements · original-rate corrections · refunds · owner isolation.')
+await usdDb.close()

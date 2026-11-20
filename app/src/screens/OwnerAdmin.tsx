@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { formatUsd, localToUsd } from '../lib/money'
 import { operation, soloApi, type CollectionRequest, type Operation } from '../lib/solo-api'
 
 type Row = Record<string, unknown> & { id?: string; order_id?: string }
@@ -9,12 +10,12 @@ const text = (values: FormData, name: string) => String(values.get(name) ?? '').
 const date = (value: unknown) => value
   ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(String(value)))
   : 'Unknown'
-const tables = ['products', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'outlets'] as const
+const tables = ['products', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'outlets', 'fx_rate_versions', 'payment_fx_snapshots'] as const
 
 async function readTable(table: string): Promise<Row[]> {
   if (!supabase) throw Error('Connect Supabase to load owner administration.')
   const result: Row[] = []
-  const key = table === 'collection_reminders' ? 'order_id' : 'id'
+  const key = table === 'collection_reminders' ? 'order_id' : table === 'payment_fx_snapshots' ? 'operation_id' : 'id'
   for (let offset = 0; ; offset += 500) {
     const { data, error } = await supabase.from(table).select('*').order(key).range(offset, offset + 499)
     if (error) throw Error(error.message)
@@ -31,6 +32,12 @@ export function OwnerAdmin() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [settlementCurrency, setSettlementCurrency] = useState('USD')
+  const [collectionKind, setCollectionKind] = useState('receipt')
+  const [receiptId, setReceiptId] = useState('')
+  const [localAmount, setLocalAmount] = useState('')
+  const [clock, setClock] = useState(Date.now)
+  useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 30000); return () => clearInterval(timer) }, [])
   const [orderId, setOrderId] = useState(params.get('invoice') || '')
   const [preview, setPreview] = useState<{ kind: 'brands' | 'products' | 'observations'; rows: Record<string, unknown>[] }>()
   const [editProduct, setEditProduct] = useState<Row>()
@@ -62,6 +69,15 @@ export function OwnerAdmin() {
   const ledger = records('payments').filter(row => row.order_id === orderId)
   const receipts = ledger.filter(row => Number(row.amount) > 0 && ['receipt', 'legacy'].includes(String(row.entry_type)))
   const reminder = records('collection_reminders').find(row => row.order_id === orderId)
+  const latestRate = [...records('fx_rate_versions')].sort((a, b) => Number(b.version) - Number(a.version))[0]
+  const originalFx = records('payment_fx_snapshots').find(row => row.payment_id === receiptId)
+  const settlementRate = collectionKind === 'correction' ? originalFx : latestRate
+  const rateExpired = !latestRate || new Date(String(latestRate.valid_until)).getTime() <= clock
+  let convertedAmount = '—'
+  try {
+    if (settlementRate && localAmount) convertedAmount = formatUsd(localToUsd(localAmount, String(settlementRate.exchange_rate_used)))
+  } catch { convertedAmount = 'Enter a valid amount' }
+
 
   async function perform(label: string, request: unknown, send: (command: Operation<unknown>) => Promise<unknown>) {
     if (busy) return
@@ -105,8 +121,12 @@ export function OwnerAdmin() {
         case 'collection': {
           if (!invoice) throw Error('Select an invoice.')
           const request: CollectionRequest = {
-            order_id: orderId, outlet_id: String(invoice.outlet_id),
-            kind: get('kind') as CollectionRequest['kind'], amount: get('amount'),
+            currency: 'USD', order_id: orderId, outlet_id: String(invoice.outlet_id),
+            kind: get('kind') as CollectionRequest['kind'],
+            amount: settlementCurrency === 'USD' ? get('amount') : undefined,
+            settlement_currency: settlementCurrency as 'USD' | 'IQD',
+            source_amount: settlementCurrency === 'IQD' ? get('source_amount') : undefined,
+            rate_version_id: settlementCurrency === 'IQD' ? String(settlementRate?.rate_version_id || settlementRate?.id || '') : undefined,
             method: get('method') as 'cash' | 'transfer',
             receipt_id: get('receipt_id') || undefined, reason: get('reason') || undefined,
           }
@@ -120,8 +140,16 @@ export function OwnerAdmin() {
             command => api.rescheduleReminder(command as Parameters<typeof api.rescheduleReminder>[0]))
           break
         }
+        case 'fx-rate': {
+          const expires = new Date(get('valid_until') + ':00+03:00')
+          if (!Number.isFinite(expires.getTime())) throw Error('Choose a future Baghdad expiry time.')
+          await perform('Parallel market rate', {
+            exchange_rate_used: get('exchange_rate_used'), rate_source: get('rate_source'), valid_until: expires.toISOString(),
+          }, command => api.publishRate(command as Parameters<typeof api.publishRate>[0]))
+          break
+        }
         case 'brand':
-          await perform('Brand', { kind: 'brands', rows: [{ name: get('name'), is_own: get('is_own') === 'true' }] },
+          await perform('Brand', { currency: 'USD', kind: 'brands', rows: [{ name: get('name'), is_own: get('is_own') === 'true' }] },
             command => api.importData(command as Parameters<typeof api.importData>[0]))
           break
         case 'product': {
@@ -135,15 +163,10 @@ export function OwnerAdmin() {
           const brand = records('survey_brands').find(row => row.id === product.brand_id)
           if (!brand) throw Error('Select a brand.')
           if (editProduct) {
-            if (pending.current) throw Error('Retry the pending operation first.')
-            setBusy(true)
-            const { error } = await supabase.from('products').update({ ...product, brand: brand.name }).eq('id', editProduct.id)
-            if (error) throw Error(error.message)
-            setEditProduct(undefined)
-            setNotice('Product updated')
-            setRevision(value => value + 1)
+            await perform('Product update', { ...product, id: editProduct.id, currency: 'USD' },
+              command => api.updateProduct(command as Parameters<typeof api.updateProduct>[0]))
           } else {
-            await perform('Product', { kind: 'products', rows: [product] },
+            await perform('Product', { currency: 'USD', kind: 'products', rows: [product] },
               command => api.importData(command as Parameters<typeof api.importData>[0]))
           }
           break
@@ -199,6 +222,8 @@ export function OwnerAdmin() {
     const api = soloApi(client)
     const label = item.label
     void perform(label, item.command.request, command => {
+      if (label === 'Parallel market rate') return api.publishRate(command as Parameters<typeof api.publishRate>[0])
+      if (label === 'Product update') return api.updateProduct(command as Parameters<typeof api.updateProduct>[0])
       if (label === 'Collection') return api.postCollection(command as Parameters<typeof api.postCollection>[0])
       if (label === 'Reminder') return api.rescheduleReminder(command as Parameters<typeof api.rescheduleReminder>[0])
       if (label === 'Survey version') return api.publishSurvey(command as Parameters<typeof api.publishSurvey>[0])
@@ -212,29 +237,57 @@ export function OwnerAdmin() {
   return <main>
     <h1>Owner administration</h1>
     <nav className="retail-tabs" aria-label="Owner administration">
-      {['Collections', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label =>
+      {['Collections', 'Exchange rate', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label =>
         <button key={label} onClick={() => setTab(label)} aria-pressed={tab === label}>{label}</button>)}
     </nav>
-    {error && <p className="error" role="alert">{error}</p>}
+    {error && <><p className="error" role="alert">{error}</p>
+      <button onClick={() => { setError(''); setRevision(value => value + 1) }}>Reload owner records</button></>}
     {notice && <p role="status">{notice}</p>}
     {pendingView && <p>Pending operation {pendingView.command.id}. <button disabled={busy} onClick={retryPending}>Retry saved operation</button></p>}
     {!rows.products && !error && <p role="status">Loading owner records…</p>}
+    {tab === 'Exchange rate' && <>
+      <h2>Manual parallel-market rate</h2>
+      <p>Enter IQD per $1 using the rate you agree to accept. Official rates are never substituted.</p>
+      {latestRate && <section className="card">
+        <strong>{format(latestRate.exchange_rate_used)} IQD per $1</strong>
+        <p>{rateExpired ? 'Expired — publish a new rate for local cash' : 'Active'} · {format(latestRate.rate_source)}</p>
+        <p>Recorded {date(latestRate.rate_timestamp)} · Expires {date(latestRate.valid_until)}</p>
+      </section>}
+      <form {...formProps} data-kind="fx-rate">
+        <label>IQD per $1<input name="exchange_rate_used" type="number" min="0.00000001" step="0.00000001" required /></label>
+        <label>Source / agreed dealer quote<input name="rate_source" required placeholder="Parallel-market source or dealer" /></label>
+        <label>Valid until · Baghdad time<input name="valid_until" type="datetime-local" required /></label>
+        {submitButton}
+      </form>
+      <h2>Rate history</h2>
+      <ul>{records('fx_rate_versions').map(row => <li key={row.id}>
+        {format(row.exchange_rate_used)} IQD per $1 · {date(row.rate_timestamp)} · {format(row.rate_source)}
+      </li>)}</ul>
+    </>}
     {tab === 'Collections' && <>
       <label>Invoice<select value={orderId} onChange={event => setOrderId(event.target.value)}>
         <option value="">Choose invoice</option>
         {records('solo_invoice_balances').map(row => <option key={row.id} value={row.id}>
-          #{format(row.invoice_no)} · {format(row.payment_status)} · {format(row.outstanding)} IQD
+          #{format(row.invoice_no)} · {format(row.payment_status)} · {format(row.outstanding)} USD
         </option>)}
       </select></label>
       {invoice && <>
         <dl className="metrics">
-          {['total', 'collected', 'outstanding', 'overpayment'].map(key => <div key={key}><dt>{key}</dt><dd>{format(invoice[key])} IQD</dd></div>)}
+          {['total', 'collected', 'outstanding', 'overpayment'].map(key => <div key={key}><dt>{key}</dt><dd>{format(invoice[key])} USD</dd></div>)}
         </dl>
         <form {...formProps} data-kind="collection">
-          <label>Operation<select name="kind"><option value="receipt">Receipt</option><option value="refund">Refund</option><option value="correction">Correct receipt</option></select></label>
-          <label>Amount · IQD<input name="amount" type="number" min="0" step="0.01" required /></label>
+          <label>Operation<select name="kind" value={collectionKind} onChange={event => setCollectionKind(event.target.value)}><option value="receipt">Receipt</option><option value="refund">Refund</option><option value="correction">Correct receipt</option></select></label>
+          <label>Cash currency<select value={settlementCurrency} onChange={event => setSettlementCurrency(event.target.value)}>
+            <option value="USD">USD</option><option value="IQD">IQD · parallel rate</option>
+          </select></label>
+          {settlementCurrency === 'USD' ? <label>Amount · USD<input name="amount" type="number" min="0" step="0.01" required /></label> : <>
+            <label>Local cash · IQD<input name="source_amount" type="number" min="0" step="0.01" required value={localAmount} onChange={event => setLocalAmount(event.target.value)} /></label>
+            <p>USD ledger amount {convertedAmount}</p>
+            <p>{settlementRate ? format(settlementRate.exchange_rate_used) + ' IQD per $1 · ' + format(settlementRate.rate_source) : 'Choose a local receipt to correct or publish a rate first.'}</p>
+            {collectionKind !== 'correction' && rateExpired && <p className="error">Publish a fresh rate before recording local cash.</p>}
+          </>}
           <label>Method<select name="method"><option value="cash">Cash</option><option value="transfer">Transfer</option></select></label>
-          <label>Original receipt for refund or correction<select name="receipt_id"><option value="">Choose receipt</option>
+          <label>Original receipt for refund or correction<select name="receipt_id" value={receiptId} onChange={event => setReceiptId(event.target.value)}><option value="">Choose receipt</option>
             {receipts.map(row => <option key={row.id} value={row.id}>{format(row.amount)} · {date(row.collected_at)} · {row.id}</option>)}
           </select></label>
           <label>Reason for refund or correction<input name="reason" /></label>
@@ -247,7 +300,11 @@ export function OwnerAdmin() {
           <button disabled={busy || Number(invoice.outstanding) <= 0}>Reschedule</button>
         </form>
         <h2>Cash history</h2>
-        <ul>{ledger.map(row => <li key={row.id}>{format(row.entry_type)} · {format(row.amount)} IQD · {date(row.collected_at)} · {format(row.note)}</li>)}</ul>
+        <ul>{ledger.map(row => <li key={row.id}>{format(row.entry_type)} · {format(row.amount)} USD · {date(row.collected_at)} · {format(row.note)}</li>)}</ul>
+        <h2>Local cash snapshots</h2>
+        <ul>{records('payment_fx_snapshots').filter(row => ledger.some(entry => entry.operation_id === row.operation_id)).map(row =>
+          <li key={String(row.operation_id)}>{format(row.source_amount)} IQD → {formatUsd(String(row.usd_amount))}<br />
+            {format(row.exchange_rate_used)} IQD per $1 · {format(row.rate_source)}<br />{date(row.rate_timestamp)}</li>)}</ul>
         <h2>Reminder history</h2>
         <ul>{records('reminder_history').filter(row => row.order_id === orderId).map(row =>
           <li key={row.id}>{format(row.reason)} · {date(row.created_at)} → {date(row.scheduled_at)}</li>)}</ul>
@@ -255,7 +312,7 @@ export function OwnerAdmin() {
     </>}
     {tab === 'Products' && <>
       <ul>{records('products').map(row => <li key={row.id}>
-        <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} IQD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
+        <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} USD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
       </li>)}</ul>
       <h2>{editProduct ? 'Edit product' : 'Add product'}</h2>
       {editProduct && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
@@ -266,8 +323,8 @@ export function OwnerAdmin() {
         <label>Brand<select name="brand_id" value={productBrandId} onChange={e => setProductBrandId(e.target.value)} required>
           <option value="">Choose brand</option>{records('survey_brands').map(row => <option key={row.id} value={row.id}>{format(row.name)} · {row.is_own ? 'Our catalog' : 'Competitor'}</option>)}
         </select></label>
-        <label>Wholesale · IQD<input name="wholesale_price" type="number" min="0" step="0.01" required={Boolean(productBrand?.is_own)} disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
-        <label>Cost · IQD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
+        <label>Wholesale · USD<input name="wholesale_price" type="number" min="0" step="0.01" required={Boolean(productBrand?.is_own)} disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
+        <label>Cost · USD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
         <label>Activation<select name="active" defaultValue={String(editProduct?.active ?? true)}><option value="true">Active</option><option value="false">Inactive</option></select></label>
         {submitButton}
       </form>
@@ -318,14 +375,14 @@ export function OwnerAdmin() {
         <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(preview.rows, null, 2)}</pre>
         <button disabled={busy} onClick={() => {
           const client = supabase
-          if (client) void perform('Import', preview, command => soloApi(client).importData(command as Parameters<ReturnType<typeof soloApi>['importData']>[0]))
+          if (client) void perform('Import', { ...preview, currency: 'USD' }, command => soloApi(client).importData(command as Parameters<ReturnType<typeof soloApi>['importData']>[0]))
         }}>Commit batch</button>
       </section>}
     </>}
     {tab === 'Observations' && <>
       <p>Imports accept competitor_price, new_brand and promotion observations. Supply outlet_id, visit_id, approved competitor brand_id and product_id, then price or offer, availability, facings and shelf_width_cm.</p>
       <ul>{records('market_observations').map(row => <li key={row.id}>
-        {format(row.brand)} · {format(row.model)} · {format(row.price)} IQD · {format(row.offer)} · {date(row.created_at)}
+        {format(row.brand)} · {format(row.model)} · {format(row.price)} USD · {format(row.offer)} · {date(row.created_at)}
         <br />Availability {format(row.available)} · Facings {format(row.facings)} · Shelf cm {format(row.shelf_width_cm)}
       </li>)}</ul>
       <button onClick={() => setTab('Imports')}>Import observations</button>

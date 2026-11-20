@@ -17,3 +17,8 @@ The disposable regression suite passed again. A separate live rollback transacti
 The regression harness now applies 006 and verifies owned/competitor consistency, order catalog filtering, competitor invoice rejection with transaction rollback, competitor-only fixed/flexible survey targets, and admin-only definition writes. It also tests the behavioral rollback at ../rollbacks/006_catalog_boundaries.sql. Before that rollback, competitor products must be inactive. The rollback preserves UUIDs, rows, invoice history and additional nullable target columns. Execute it only through a new reviewed forward migration, preserving migration history.
 
 Existing product and brand IDs and classification flags are retained by 006. Our catalog products require a selling price. Competitor definitions can leave selling price empty; observed competitor prices belong to survey records. Existing product/brand classification mismatches cause the migration to abort for review.
+
+
+## USD baseline — issue #21
+
+The harness additionally applies 007 and rehearses 008 on an empty USD database. It verifies cutover refusal when monetary records exist, exact USD amounts, manual-rate expiry/current-version checks, immutable settlement snapshots, local receipts/refunds/corrections, operation replay, owner isolation and catalog price-intent checks. It remains single-session synthetic coverage, not hosted UI or PostgreSQL concurrency proof.
