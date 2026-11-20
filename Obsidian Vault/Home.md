@@ -8,3 +8,5 @@ Track delivery in [GitHub Issues](https://github.com/Marketalse/Shakarchi-Distri
 - [Decisions and risks](Delivery/Decisions-and-risks.md) · [Knowledge and source register](Knowledge/Sources.md)
 
 This is a planning baseline. Phase status and approval live in GitHub; an existing file or a roadmap date is not evidence that a milestone passed.
+
+- [M2 database/access acceptance](Technical/M2-acceptance.md)
