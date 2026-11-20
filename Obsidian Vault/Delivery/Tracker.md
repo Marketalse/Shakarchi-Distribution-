@@ -13,3 +13,5 @@ The [Delivery Tracker](https://github.com/users/Marketalse/projects/3) is a priv
 - [Define order form and finance rules](https://github.com/Marketalse/Shakarchi-Distribution-/issues/12)
 - [Define dashboard metrics](https://github.com/Marketalse/Shakarchi-Distribution-/issues/13)
 - [Define advisor brief](https://github.com/Marketalse/Shakarchi-Distribution-/issues/14)
+
+- 2026-11-20 · **#25 implementation verified / release preparation** · Client profile edits preserve identity and saved coordinates, reject stale edits and unauthorized fields. Mobile published forms validate answers and retain uncertain submissions for exact retry; owner form builder and readable survey results added. Competitor observations now use an idempotent RPC. Renumbered candidate to 012 after released GPS 011; merged main without losing location protection. 36 app tests, disposable database 001–012 checks and build passed. #26 reporting/reminders follows; #29 phone acceptance remains pending. Verdict: aligned, no catalog/FX redesign or extra dependency.
