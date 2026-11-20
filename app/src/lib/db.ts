@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import type { PendingCommand } from './commands'
 import type {
   Outlet, Product, SurveyBrand, Visit, SurveyAnswer,
   Order, OrderLine, Payment, OutboxItem,
@@ -15,6 +16,7 @@ export class LocalDb extends Dexie {
   order_lines!: Table<OrderLine, string>
   payments!: Table<Payment, string>
   outbox!: Table<OutboxItem, number>
+  commands!: Table<PendingCommand, string>
 
   constructor(name = 'shakarchi-distribution') {
     super(name)
@@ -29,6 +31,7 @@ export class LocalDb extends Dexie {
       payments: 'id, outlet_id, order_id',
       outbox: '++seq, table, row_id',
     })
+    this.version(2).stores({ commands: 'id, owner_id, queued_at' })
   }
 }
 

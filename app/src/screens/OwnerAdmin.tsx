@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { openSharedVisit } from '../lib/shared-visit'
 import { supabase } from '../lib/supabase'
 import { formatUsd, localToUsd } from '../lib/money'
 import { operation, soloApi, type CollectionRequest, type Operation } from '../lib/solo-api'
@@ -46,11 +47,11 @@ export function OwnerAdmin() {
   // A failed financial request retains its exact payload and operation UUID.
   type Pending = { label: string; command: Operation<unknown> } | null
   const [pendingView, setPendingView] = useState<Pending>(() => {
-    try { return JSON.parse(sessionStorage.getItem('wsd-owner-pending-operation') || 'null') }
+    try { return JSON.parse(localStorage.getItem('wsd-owner-pending-operation') || sessionStorage.getItem('wsd-owner-pending-operation') || 'null') }
     catch { return null }
   })
   const pending = useRef<Pending>(pendingView)
-  const [surveyVisitId] = useState(() => crypto.randomUUID())
+
 
 
   useEffect(() => {
@@ -90,11 +91,11 @@ export function OwnerAdmin() {
     setBusy(true)
     setError('')
     try {
-      sessionStorage.setItem('wsd-owner-pending-operation', JSON.stringify(pending.current))
+      localStorage.setItem('wsd-owner-pending-operation', JSON.stringify(pending.current))
       await send(pending.current.command)
       pending.current = null
       setPendingView(null)
-      sessionStorage.removeItem('wsd-owner-pending-operation')
+      localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
       setNotice(label + ' saved')
       setRevision(value => value + 1)
     } catch (failure) {
@@ -102,7 +103,7 @@ export function OwnerAdmin() {
       if (code && /^(P000[12]|22|23|42501)/.test(code)) {
         pending.current = null
         setPendingView(null)
-        sessionStorage.removeItem('wsd-owner-pending-operation')
+        localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
       }
       setError((failure as Error).message)
     } finally {
@@ -187,7 +188,7 @@ export function OwnerAdmin() {
             return [[question.id, question.type === 'boolean' ? value === 'true' : question.type === 'number' ? Number(value) : value]]
           }))
           await perform('Survey answers', {
-            version_id: versionId, outlet_id: get('outlet_id'), visit_id: get('visit_id'), brand_id: get('brand_id'), answers,
+            version_id: versionId, outlet_id: get('outlet_id'), visit_id: await openSharedVisit(supabase, get('outlet_id'), 'survey'), brand_id: get('brand_id'), answers,
           }, command => api.submitSurvey(command as Parameters<typeof api.submitSurvey>[0]))
           break
         }
@@ -361,7 +362,7 @@ export function OwnerAdmin() {
           {records('survey_brands').filter(row => !row.is_own && row.active).map(row =>
             <option key={row.id} value={row.id}>{format(row.name)}</option>)}
         </select></label>
-        <label>Visit UUID · reuse for this shop stop<input name="visit_id" defaultValue={surveyVisitId} required /></label>
+        <p>Submitting starts or reuses the active visit for this client.</p>
         {(version.questions as { id: string; label: string; type: string; required: boolean; options?: string[] }[]).map(question =>
           <label key={question.id}>{question.label}{question.type === 'choice' || question.type === 'boolean'
             ? <select name={question.id} required={question.required}><option value="">Choose</option>

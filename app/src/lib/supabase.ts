@@ -13,6 +13,9 @@ export const supabase: SupabaseClient | null = url && key ? createClient(url, ke
 export function supabaseRemote(client: SupabaseClient): Remote {
   return {
     async insertIfMissing(table, row) {
+      if (['orders', 'order_lines', 'payments'].includes(table)) {
+        throw Error('Legacy financial rows need reconciliation of original currency and operation identity. No rows were deleted')
+      }
       const { error } = await client
         .from(table)
         .upsert(row, { onConflict: 'id', ignoreDuplicates: true })

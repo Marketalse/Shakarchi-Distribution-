@@ -12,7 +12,7 @@ import { NewPassword } from './screens/NewPassword'
 
 export default function App() {
   const { session, recovering, finishRecovery } = useSession()
-  const sync = useSync(Boolean(session))
+  const sync = useSync(session?.user.id)
   const repId = session?.user.id
   const { pathname } = useLocation()
   const title = pathname === '/dashboard' ? 'Overview'
@@ -44,6 +44,7 @@ export default function App() {
           {sync.busy ? 'Syncing…' : !sync.online ? 'Offline' : sync.pending ? sync.pending + ' pending' : 'Sync'}
         </button>}
       </header>
+      {sync.error && <p className="error" role="alert">Sync paused: {sync.error}. Pending records are retained.</p>}
       {session === undefined ? <main><p role="status">Loading your workspace…</p></main>
         : !repId ? <Login />
         : recovering ? <NewPassword onDone={finishRecovery} />

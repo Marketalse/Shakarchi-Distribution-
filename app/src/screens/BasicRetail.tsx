@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
 import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
-import { soloApi } from '../lib/solo-api'
+import { soloApi, operation } from '../lib/solo-api'
+import { openSharedVisit } from '../lib/shared-visit'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -54,6 +55,28 @@ function useRows<T>(loader: () => Promise<T>, key: string) {
 export function RetailDetail({ version }: { version: number }) {
   const { outletId } = useParams()
   const [tab, setTab] = useState('Summary')
+  const [visitId, setVisitId] = useState('')
+  const [visitError, setVisitError] = useState('')
+  const [visitBusy, setVisitBusy] = useState(false)
+  useEffect(() => {
+    if (!outletId || tab === 'Summary' || !supabase) return
+    let active = true
+    setVisitBusy(true)
+    void openSharedVisit(supabase, outletId, tab === 'Order' ? 'order' : 'survey').then(
+      id => { if (active) { setVisitId(id); setVisitError(''); setVisitBusy(false) } },
+      error => { if (active) { setVisitError(message(error)); setVisitBusy(false) } },
+    )
+    return () => { active = false }
+  }, [outletId, tab])
+  async function finishVisit() {
+    if (!supabase || !visitId || visitBusy) return
+    setVisitBusy(true)
+    try {
+      await soloApi(supabase).finishVisit(operation({ visit_id: visitId }))
+      setVisitId(''); setTab('Summary'); setRevision(value => value + 1)
+    } catch (failure) { setVisitError(message(failure)) }
+    finally { setVisitBusy(false) }
+  }
   const [revision, setRevision] = useState(0)
   const { data: retail } = useRows(
     () => outletId ? db.outlets.get(outletId) : Promise.resolve(undefined),
@@ -70,8 +93,11 @@ export function RetailDetail({ version }: { version: number }) {
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
-      {tab === 'Order' && <OrderForm key={outletId} outletId={outletId} onSaved={() => setRevision(revision + 1)} />}
-      {tab === 'Survey' && <SurveyForm key={outletId} outletId={outletId} />}
+      {visitBusy && <p role="status">Loading visit…</p>}
+      {visitError && <p className="error" role="alert">{visitError}</p>}
+      {visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
+      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
+      {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
     </main>
   )
 }
@@ -97,7 +123,7 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
   </>
 }
 
-function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => void }) {
+function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: string; onSaved: () => void }) {
   const [revision, setRevision] = useState(0)
   const catalog = useRows(async () => {
     if (!supabase) throw new Error('Connect Supabase to load the catalog.')
@@ -121,7 +147,7 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
   const pendingKey = 'wsd-pending-invoice:' + outletId
   type Attempt = { key: string; id: string } | null
   const [pendingAttempt, setPendingAttempt] = useState<Attempt>(() => {
-    try { return JSON.parse(sessionStorage.getItem(pendingKey) || 'null') }
+    try { return JSON.parse(localStorage.getItem(pendingKey) || sessionStorage.getItem(pendingKey) || 'null') }
     catch { return null }
   })
   const attempt = useRef<Attempt>(pendingAttempt)
@@ -155,11 +181,11 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
       { sku_id: string; quantity: number; price: number }[], string, string, string,
     ]
     try {
-      sessionStorage.setItem(pendingKey, JSON.stringify(attempt.current))
+      localStorage.setItem(pendingKey, JSON.stringify(attempt.current))
       const result = await soloApi(supabase).issueInvoice({
         id: attempt.current.id,
         request: {
-          currency: 'USD', outlet_id: outletId,
+          currency: 'USD', outlet_id: outletId, visit_id: visitId,
           items: savedItems.map(item => ({ ...item, price: String(item.price) })),
           terms_days: Number(savedTerms),
           next_visit: savedNextVisit || undefined,
@@ -175,14 +201,14 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
       setInitialReceipt('0')
       attempt.current = null
       setPendingAttempt(null)
-      sessionStorage.removeItem(pendingKey)
+      localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
       onSaved()
     } catch (failure) {
       const code = (failure as Error & { code?: string }).code
       if (code && /^(P000[12]|22|23|42501)/.test(code)) {
         attempt.current = null
         setPendingAttempt(null)
-        sessionStorage.removeItem(pendingKey)
+        localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
       }
       setError(message(failure))
     } finally {
@@ -252,7 +278,7 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
   </form>
 }
 
-function SurveyForm({ outletId }: { outletId: string }) {
+function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }) {
   const [brandId, setBrandId] = useState('')
   const [productId, setProductId] = useState('')
   const competitors = useRows(async () => {
@@ -281,7 +307,7 @@ function SurveyForm({ outletId }: { outletId: string }) {
     const value = (name: string) => String(values.get(name) ?? '').trim()
     const promotion = kind === 'promotion'
     const fields = {
-      currency: 'USD', outlet_id: outletId, kind, brand_id: brandId, product_id: productId,
+      currency: 'USD', outlet_id: outletId, visit_id: visitId, kind, brand_id: brandId, product_id: productId,
       brand: competitors.data?.brands.find(item => item.id === brandId)?.name ?? '',
       model: competitors.data?.products.find(item => item.id === productId)?.product_line ?? '',
       price: promotion ? null : Number(value('price')), offer: promotion ? value('offer') : null,
