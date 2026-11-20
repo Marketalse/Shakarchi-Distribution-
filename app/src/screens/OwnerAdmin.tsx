@@ -32,6 +32,7 @@ export function OwnerAdmin() {
   const [revision, setRevision] = useState(0)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState(false)
   const [settlementCurrency, setSettlementCurrency] = useState('USD')
   const [collectionKind, setCollectionKind] = useState('receipt')
@@ -59,8 +60,8 @@ export function OwnerAdmin() {
   useEffect(() => {
     let active = true
     void Promise.all(tables.map(async name => [name, await readTable(name)] as const)).then(
-      entries => { if (active) setRows(Object.fromEntries(entries)) },
-      failure => { if (active) setError(String(failure.message)) },
+      entries => { if (active) { setRows(Object.fromEntries(entries)); setLoadError('') } },
+      failure => { if (active) setLoadError(String(failure.message)) },
     )
     return () => { active = false }
   }, [revision])
@@ -85,7 +86,7 @@ export function OwnerAdmin() {
   async function perform(label: string, request: unknown, send: (command: Operation<unknown>) => Promise<unknown>) {
     if (busy) return
     if (pending.current && (pending.current.label !== label || JSON.stringify(pending.current.command.request) !== JSON.stringify(request))) {
-      setError('Retry the pending operation before submitting different details. Its UUID and payload have been retained.')
+      setError('Retry the pending submission before changing these details.')
       return
     }
     pending.current ??= { label, command: operation(request) }
@@ -107,7 +108,7 @@ export function OwnerAdmin() {
         setPendingView(null)
         localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
       }
-      setError((failure as Error).message)
+      setError(label === 'Parallel market rate' && code === 'P0001' ? 'Enter a rate above 0 and a future expiry.' : (failure as Error).message)
     } finally {
       setBusy(false)
     }
@@ -147,7 +148,7 @@ export function OwnerAdmin() {
           const expires = new Date(get('valid_until') + ':00+03:00')
           if (!Number.isFinite(expires.getTime())) throw Error('Choose a future Baghdad expiry time.')
           await perform('Parallel market rate', {
-            exchange_rate_used: get('exchange_rate_used'), rate_source: get('rate_source'), valid_until: expires.toISOString(),
+            exchange_rate_used: get('exchange_rate_used'), rate_source: 'Manual admin entry', valid_until: expires.toISOString(),
           }, command => api.publishRate(command as Parameters<typeof api.publishRate>[0]))
           break
         }
@@ -240,18 +241,19 @@ export function OwnerAdmin() {
 
   return <main>
     <h1>Owner administration</h1>
-    <nav className="retail-tabs" aria-label="Owner administration">
-      {['Collections', 'Exchange rate', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label =>
-        <button key={label} onClick={() => setTab(label)} aria-pressed={tab === label}>{label}</button>)}
-    </nav>
-    {error && <><p className="error" role="alert">{error}</p>
-      <button onClick={() => { setError(''); setRevision(value => value + 1) }}>Reload owner records</button></>}
+    <label className="owner-section">Section
+      <select value={tab} onChange={event => { setTab(event.target.value); setError(''); setNotice('') }}>
+        {['Collections', 'Exchange rate', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label => <option key={label}>{label}</option>)}
+      </select>
+    </label>
+    {loadError && <><p className="error" role="alert">Could not load records. Try again.</p>
+      <button onClick={() => setRevision(value => value + 1)}>Reload</button></>}
+    {error && <p className="error" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {pendingView && <p>Pending operation {pendingView.command.id}. <button disabled={busy} onClick={retryPending}>Retry saved operation</button></p>}
-    {!rows.products && !error && <p role="status">Loading owner records…</p>}
+    {pendingView && <p>Submission pending. <button disabled={busy} onClick={retryPending}>Retry submission</button></p>}
+    {!rows.products && !loadError && <p role="status">Loading owner records…</p>}
     {tab === 'Exchange rate' && <>
-      <h2>Manual parallel-market rate</h2>
-      <p>Enter IQD per $1 using the rate you agree to accept. Official rates are never substituted.</p>
+      <h2>Today's exchange rate</h2>
       {latestRate && <section className="card">
         <strong>{format(latestRate.exchange_rate_used)} IQD per $1</strong>
         <p>{rateExpired ? 'Expired — publish a new rate for local cash' : 'Active'} · {format(latestRate.rate_source)}</p>
@@ -259,14 +261,13 @@ export function OwnerAdmin() {
       </section>}
       <form {...formProps} data-kind="fx-rate">
         <label>IQD per $1<input name="exchange_rate_used" type="number" min="0.00000001" step="0.00000001" required /></label>
-        <label>Source / agreed dealer quote<input name="rate_source" required placeholder="Parallel-market source or dealer" /></label>
         <label>Valid until · Baghdad time<input name="valid_until" type="datetime-local" required /></label>
         {submitButton}
       </form>
-      <h2>Rate history</h2>
+      <details className="secondary-details"><summary>Rate history</summary>
       <ul>{records('fx_rate_versions').map(row => <li key={row.id}>
         {format(row.exchange_rate_used)} IQD per $1 · {date(row.rate_timestamp)} · {format(row.rate_source)}
-      </li>)}</ul>
+      </li>)}</ul></details>
     </>}
     {tab === 'Collections' && <>
       <label>Invoice<select value={orderId} onChange={event => setOrderId(event.target.value)}>

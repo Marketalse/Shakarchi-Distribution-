@@ -14,6 +14,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
     province: '', area: '', address: '', outlet_type: '',
     relationship: 'prospect' as Relationship,
   })
+  const [optionalContact, setOptionalContact] = useState(false)
   const [pos, setPos] = useState<Position | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [gpsBusy, setGpsBusy] = useState(false)
@@ -88,21 +89,23 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <label>{t.form.area}<input required value={f.area} onChange={set('area')} /></label>
         <label>{t.form.owner}<input value={f.owner_name} onChange={set('owner_name')} /></label>
         <label>{t.form.ownerPhone}<input type="tel" inputMode="tel" value={f.owner_phone} onChange={set('owner_phone')} /></label>
-        <label>Staff name<input value={f.staff_name} onChange={set('staff_name')} /></label>
-        <label>Staff phone<input type="tel" value={f.staff_phone} onChange={set('staff_phone')} /></label>
+        <button type="button" className="link optional-contact" aria-expanded={optionalContact} aria-controls="new-staff-contact" onClick={() => setOptionalContact(value => !value)}>{optionalContact ? 'Hide optional contact' : '+ Optional contact'}</button>
+        {optionalContact && <div id="new-staff-contact" className="form">
+          <label>Staff name<input autoComplete="off" value={f.staff_name} onChange={set('staff_name')} /></label>
+          <label>Staff phone<input type="tel" value={f.staff_phone} onChange={set('staff_phone')} /></label>
+        </div>}
         <label>{t.form.shopPhone}<input type="tel" inputMode="tel" value={f.shop_phone} onChange={set('shop_phone')} /></label>
         <label>{t.form.address}<input value={f.address} onChange={set('address')} /></label>
         <div>
           <span className="label">{t.form.gps}</span>
           <button type="button" className="wide" onClick={() => void locate()} disabled={gpsBusy}>
-            {gpsBusy ? 'Capturing…' : 'Capture Current Location'}
+            {gpsBusy ? 'Capturing…' : pos ? 'Recapture location' : 'Capture location'}
           </button>
         </div>
         {pos && <section className="card">
-          <p>Store location: {pos.lat.toFixed(6)}, {pos.lng.toFixed(6)} · reported accuracy ±{Math.round(pos.accuracy_m)} m</p>
-          <p>Stand at the store before confirming. This destination will be reused for future visits.</p>
-          {pos.accuracy_m > 50 && <p className="warn-text">The location estimate is broad. Move outside and recapture if needed.</p>}
-          <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />These coordinates are the store location</label>
+          <p role="status">Location captured</p>
+          {pos.accuracy_m > 50 && <p className="warn-text">Location is approximate. Move outside and try again.</p>}
+          <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I'm at the store</label>
         </section>}
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row">

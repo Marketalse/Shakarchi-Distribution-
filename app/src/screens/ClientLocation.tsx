@@ -35,7 +35,7 @@ export function ClientLocation({ retail, allowCorrection = false, onUpdated }: {
       const { data, error } = await supabase.from('outlets').select('*').eq('id',retail.id).single()
       if (error) throw error
       await db.outlets.put(data as Outlet)
-      setEditing(false); setPosition(undefined); setNotice('Store location corrected. Future visits will use the saved destination.'); onUpdated?.()
+      setEditing(false); setPosition(undefined); setNotice('Store location updated.'); onUpdated?.()
     } catch (failure) {
       if (/^(P000[12]|22|23|42501)/.test((failure as {code?:string}).code ?? '')) { pending.current = undefined; setHasPending(false) }
       setError(failure instanceof Error ? failure.message : String(failure))
@@ -44,18 +44,16 @@ export function ClientLocation({ retail, allowCorrection = false, onUpdated }: {
   return <section className="card" aria-label="Saved store location">
     <h2>Store location</h2>
     {url ? <>
-      <p>{retail.lat.toFixed(6)}, {retail.lng.toFixed(6)} · {retail.location_accuracy == null ? 'Accuracy unknown' : 'Reported accuracy ±' + Math.round(retail.location_accuracy) + ' m'}</p>
       <a className="button primary" href={url} target="_blank" rel="noopener noreferrer">Navigate</a>
-      <p className="muted">Opens Google Maps using this saved destination.</p>
-    </> : <p>Store location is unavailable. Correct it before navigating.</p>}
+    </> : <p>Add a store location to navigate.</p>}
     {allowCorrection && !editing && <button type="button" onClick={() => { setEditing(true); setError('') }}>Correct store location</button>}
     {editing && <div className="form">
-      <p>Use this only to fix an incorrect destination or a relocated store. Stand at the store before capturing.</p>
+      <p>Stand at the store to correct its location.</p>
       <button type="button" disabled={capturing || saving || hasPending} onClick={() => void capture()}>{capturing ? 'Capturing…' : 'Capture corrected location'}</button>
       {position && <>
-        <p>New destination: {position.lat.toFixed(6)}, {position.lng.toFixed(6)} · ±{Math.round(position.accuracy_m)} m</p>
-        {position.accuracy_m > 50 && <p className="warn-text">The estimate is broad. Move outside and recapture if needed.</p>}
-        <label><input type="checkbox" checked={confirmed} disabled={hasPending} onChange={e => setConfirmed(e.target.checked)} />Confirm this is the store location</label>
+        <p role="status">New location captured</p>
+        {position.accuracy_m > 50 && <p className="warn-text">Location is approximate. Move outside and try again.</p>}
+        <label><input type="checkbox" checked={confirmed} disabled={hasPending} onChange={e => setConfirmed(e.target.checked)} />I'm at the store</label>
         <label>Correction reason<input value={reason} disabled={hasPending} onChange={e => setReason(e.target.value)} /></label>
         <button type="button" disabled={saving || !confirmed || !reason.trim()} onClick={() => void correct()}>{saving ? 'Saving…' : hasPending ? 'Retry saved correction' : 'Save corrected store location'}</button>
       </>}
