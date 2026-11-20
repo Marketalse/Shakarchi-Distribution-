@@ -101,3 +101,11 @@ button.link { border: 0; padding: 0; background: none; text-decoration: underlin
   .row { flex-wrap: wrap; }
   .stepper { gap: 6px; }
 }
+
+/* General forms: keep secondary fields and controls out of the main flow. */
+.owner-section { display: grid; gap: .4rem; margin-bottom: 1rem; }
+.owner-section select { width: 100%; min-height: 44px; }
+.optional-contact { text-align: left; justify-self: start; }
+.form [hidden] { display: none; }
+.secondary-details { margin: 1rem 0; }
+.secondary-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
