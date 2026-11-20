@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { db } from './db'
+import { sendCommand } from './commands'
 
 /** Decimal strings preserve PostgreSQL numeric precision across the API boundary. */
 export type Usd = string
@@ -34,14 +36,16 @@ export function operation<T>(request: T): Operation<T> {
 
 export function soloApi(client: SupabaseClient) {
   async function call<T>(name: string, command: Operation<unknown>): Promise<T> {
-    const { data, error } = await client.rpc(name, {
-      p_operation: command.id,
-      p_request: command.request,
-    })
-    if (error) throw Object.assign(new Error(error.message), { code: error.code })
-    return data as T
+    const { data: { session }, error: authError } = await client.auth.getSession()
+    if (authError || !session) throw Error('Sign in before posting an operation.')
+    return await sendCommand(db, session.user.id, name, command.id, command.request, async (rpc, id, request) => {
+      const { data, error } = await client.rpc(rpc, { p_operation: id, p_request: request })
+      if (error) throw Object.assign(new Error(error.message), { code: error.code })
+      return data
+    }) as T
   }
   return {
+    finishVisit: (command: Operation<{ visit_id: string; outcome?: string }>) => call<{ visit_id: string }>('finish_solo_visit', command),
     issueInvoice: (command: Operation<IssueRequest>) =>
       call<{ order_id: string; invoice_no: number }>('issue_solo_invoice', command),
     postCollection: (command: Operation<CollectionRequest>) =>
