@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
+import { ClientLocation } from './ClientLocation'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -80,7 +81,7 @@ export function RetailDetail({ version }: { version: number }) {
   const [revision, setRevision] = useState(0)
   const { data: retail } = useRows(
     () => outletId ? db.outlets.get(outletId) : Promise.resolve(undefined),
-    String(outletId) + ':' + version,
+    String(outletId) + ':' + version + ':' + revision,
   )
   if (!outletId || !retail) return <main><Link to="/">Retail list</Link><p>Retail details are unavailable.</p></main>
 
@@ -88,6 +89,7 @@ export function RetailDetail({ version }: { version: number }) {
     <main>
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
+      <ClientLocation retail={retail} allowCorrection onUpdated={() => setRevision(value => value + 1)} />
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Order', 'Survey'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}

@@ -19,16 +19,22 @@ export function nearbyOutlets(outlets: Outlet[], lat: number, lng: number, radiu
     .sort((a, b) => a.distance_m - b.distance_m)
 }
 
-export interface Position { lat: number; lng: number; accuracy_m: number }
+export interface Position { lat: number; lng: number; accuracy_m: number; captured_at: string }
 
 /** Ask the phone for its position. Rejects with a readable message. */
 export function getPosition(): Promise<Position> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) return reject(new Error('This phone has no GPS available'))
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy_m: p.coords.accuracy }),
+      (p) => {
+        const {latitude: lat, longitude: lng, accuracy: accuracy_m} = p.coords
+        if (!Number.isFinite(lat) || Math.abs(lat)>90 || !Number.isFinite(lng) || Math.abs(lng)>180 || !Number.isFinite(accuracy_m) || accuracy_m<0 || !Number.isFinite(p.timestamp)) {
+          reject(new Error('The device returned an invalid location. Please capture again.')); return
+        }
+        resolve({ lat, lng, accuracy_m, captured_at: new Date(p.timestamp).toISOString() })
+      },
       (e) => reject(new Error(e.code === e.PERMISSION_DENIED ? 'Location permission was refused' : 'Could not get a GPS position')),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     )
   })
 }
