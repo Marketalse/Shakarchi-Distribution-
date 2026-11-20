@@ -242,4 +242,24 @@ assert.equal((await usdDb.query('select * from fx_rate_versions')).rows.length, 
 await assert.rejects(usdRpc('publish_solo_fx_rate', id(), rateRequest), /Owner access/)
 await assert.rejects(usdRpc('post_solo_collection', id(), localRequest), /Owner access/)
 console.log('PASS · USD-only amounts · currency-intent checks · immutable manual rates and settlement snapshots · stale-rate rejection · partial settlements · original-rate corrections · refunds · owner isolation.')
+await usdDb.exec('reset role');
+await usdDb.exec(await readFile(root + '009_inactive_catalog_metadata.sql', 'utf8'));
+await usdDb.exec("set role authenticated; select set_config('request.jwt.claim.sub','" + owner + "',false);");
+const unpriced = {sku:'INACTIVE-TEST',brand_id:usdBrand,product_line:'Unstocked line',flavour:'Mint',active:false,wholesale_price:null,puffs:20000,units_per_carton:100,retail_price:null};
+await usdRpc('import_solo_data',id(),{currency:'USD',kind:'products',rows:[unpriced]});
+const inactiveProduct=(await usdDb.query("select * from products where sku='INACTIVE-TEST'")).rows[0];
+assert.equal(inactiveProduct.is_own_brand,true);
+assert.equal(inactiveProduct.wholesale_price,null);
+assert.equal(inactiveProduct.puffs,20000);
+assert.equal(inactiveProduct.units_per_carton,100);
+assert.equal((await usdDb.query('select * from solo_active_catalog where id=$1',[inactiveProduct.id])).rows.length,0);
+await assert.rejects(usdDb.query('update products set active=true where id=$1',[inactiveProduct.id]),/own_catalog_price_required/);
+await assert.rejects(usdRpc('issue_solo_invoice',id(),{...usdRequest,items:[{sku_id:inactiveProduct.id,quantity:1,price:'0'}]}),/no rows/);
+await assert.rejects(usdRpc('import_solo_data',id(),{currency:'USD',kind:'products',rows:[{...unpriced,sku:'BAD-META',puffs:1.5}]}),/whole-number/);
+await usdRpc('update_solo_product',id(),{...unpriced,id:inactiveProduct.id,active:true,wholesale_price:'8.00',retail_price:'9.50',currency:'USD'});
+const activated=(await usdDb.query('select * from solo_active_catalog where id=$1',[inactiveProduct.id])).rows[0];
+assert.equal(Number(activated.wholesale_price),8);
+assert.equal(Number(activated.retail_price),9.5);
+assert.equal(Number((await usdDb.query('select total from solo_invoice_balances where id=$1',[usdInvoice])).rows[0].total),100);
+console.log('PASS · inactive unpriced own catalog · activation guard · order exclusion · metadata precision · existing invoices preserved.');
 await usdDb.close()

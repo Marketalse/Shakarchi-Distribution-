@@ -156,7 +156,8 @@ export function OwnerAdmin() {
           const product = {
             sku: get('sku'), product_line: get('product_line'), flavour: get('flavour'), brand_id: get('brand_id'),
             is_own_brand: Boolean(productBrand?.is_own),
-            wholesale_price: productBrand?.is_own ? get('wholesale_price') : null,
+            wholesale_price: productBrand?.is_own ? get('wholesale_price') || null : null,
+            retail_price: get('retail_price') || null, puffs: get('puffs') || null, units_per_carton: get('units_per_carton') || null,
             cost_price: productBrand?.is_own ? get('cost_price') || null : null,
             active: get('active') === 'true',
           }
@@ -323,7 +324,11 @@ export function OwnerAdmin() {
         <label>Brand<select name="brand_id" value={productBrandId} onChange={e => setProductBrandId(e.target.value)} required>
           <option value="">Choose brand</option>{records('survey_brands').map(row => <option key={row.id} value={row.id}>{format(row.name)} · {row.is_own ? 'Our catalog' : 'Competitor'}</option>)}
         </select></label>
-        <label>Wholesale · USD<input name="wholesale_price" type="number" min="0" step="0.01" required={Boolean(productBrand?.is_own)} disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
+        <label>Wholesale · USD<input name="wholesale_price" type="number" min="0" step="0.01"  disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
+        <p>Own products may have no wholesale price while inactive. Add a price before activation.</p>
+        <label>Retail · USD<input name="retail_price" type="number" min="0" step="0.01" defaultValue={String(editProduct?.retail_price ?? '')} /></label>
+        <label>Puffs<input name="puffs" type="number" min="1" step="1" defaultValue={String(editProduct?.puffs ?? '')} /></label>
+        <label>Units per carton<input name="units_per_carton" type="number" min="1" step="1" defaultValue={String(editProduct?.units_per_carton ?? '')} /></label>
         <label>Cost · USD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
         <label>Activation<select name="active" defaultValue={String(editProduct?.active ?? true)}><option value="true">Active</option><option value="false">Inactive</option></select></label>
         {submitButton}
