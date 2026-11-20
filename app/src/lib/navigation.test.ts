@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { googleMapsNavigation } from './navigation'
+import { googleMapsNavigation, wazeNavigation } from './navigation'
 import { getPosition } from './geo'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -13,6 +13,20 @@ describe('capture once and navigate with the stored destination', () => {
     expect(url.origin).toBe('https://www.google.com')
     expect(url.searchParams.get('destination')).toBe('33.25,44.25')
     expect(url.searchParams.get('origin')).toBeNull()
+    expect(gps).not.toHaveBeenCalled()
+  })
+  it('offers both providers with the same saved destination and no new GPS request', () => {
+    const gps = vi.fn()
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition: gps } })
+    const google = new URL(googleMapsNavigation(33.25,44.25)!)
+    const waze = new URL(wazeNavigation(33.25,44.25)!)
+    expect(waze.origin).toBe('https://waze.com')
+    expect(waze.searchParams.get('ll')).toBe(google.searchParams.get('destination'))
+    expect(waze.searchParams.get('navigate')).toBe('yes')
+    expect([...waze.searchParams.keys()]).toEqual(['ll','navigate'])
+    expect(wazeNavigation(33.25,44.25)).toBe(waze.href)
+    for (const [lat,lng] of [[91,44],[33,181],[NaN,44],[33,Infinity]]) expect(wazeNavigation(lat,lng)).toBeNull()
+    expect(wazeNavigation(0,0)).not.toBeNull()
     expect(gps).not.toHaveBeenCalled()
   })
   it('rejects invalid destinations but permits a real zero coordinate', () => {

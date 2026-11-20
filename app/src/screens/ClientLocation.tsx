@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Outlet } from '../lib/types'
-import { googleMapsNavigation } from '../lib/navigation'
+import { googleMapsNavigation, wazeNavigation } from '../lib/navigation'
 import { getPosition, type Position } from '../lib/geo'
 import { operation, soloApi, type Operation } from '../lib/solo-api'
 import { supabase } from '../lib/supabase'
@@ -8,6 +8,7 @@ import { db } from '../lib/db'
 
 export function ClientLocation({ retail, allowCorrection = false, onUpdated }: { retail: Outlet; allowCorrection?: boolean; onUpdated?: () => void }) {
   const url = googleMapsNavigation(retail.lat, retail.lng)
+  const wazeUrl = wazeNavigation(retail.lat, retail.lng)
   const [editing, setEditing] = useState(false), [capturing, setCapturing] = useState(false), [saving, setSaving] = useState(false)
   const [position, setPosition] = useState<Position>(), [confirmed, setConfirmed] = useState(false), [reason, setReason] = useState('')
   const [error, setError] = useState(''), [notice, setNotice] = useState('')
@@ -43,9 +44,13 @@ export function ClientLocation({ retail, allowCorrection = false, onUpdated }: {
   }
   return <section className="card" aria-label="Saved store location">
     <h2>Store location</h2>
-    {url ? <>
-      <a className="button primary" href={url} target="_blank" rel="noopener noreferrer">Navigate</a>
-    </> : <p>Add a store location to navigate.</p>}
+    {url && wazeUrl ? <details className="navigation-picker">
+      <summary className="button primary">Navigate</summary>
+      <div className="navigation-options" role="group" aria-label="Choose navigation app">
+        <a className="button" href={url} target="_blank" rel="noopener noreferrer">Google Maps</a>
+        <a className="button" href={wazeUrl} target="_blank" rel="noopener noreferrer">Waze</a>
+      </div>
+    </details> : <p>Add a store location to navigate.</p>}
     {allowCorrection && !editing && <button type="button" onClick={() => { setEditing(true); setError('') }}>Correct store location</button>}
     {editing && <div className="form">
       <p>Stand at the store to correct its location.</p>

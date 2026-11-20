@@ -109,3 +109,8 @@ button.link { border: 0; padding: 0; background: none; text-decoration: underlin
 .form [hidden] { display: none; }
 .secondary-details { margin: 1rem 0; }
 .secondary-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+
+.navigation-picker { margin-bottom: .75rem; }
+.navigation-picker > summary { cursor: pointer; width: fit-content; }
+.navigation-options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .65rem; }
+.navigation-options a { min-height: 44px; }
