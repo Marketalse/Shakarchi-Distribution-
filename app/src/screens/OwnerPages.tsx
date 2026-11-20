@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { formatUsd } from '../lib/money'
 import { supabase } from '../lib/supabase'
 
 type Invoice = {
@@ -11,9 +12,7 @@ type InvoiceLine = {
   id: string; quantity: number; unit_price: string; line_total: string
   product_snapshot: { sku?: string; product_line?: string; flavour?: string } | null
 }
-const money = (value: string) => new Intl.NumberFormat('en-IQ', {
-  style: 'currency', currency: 'IQD', maximumFractionDigits: 2,
-}).format(Number(value))
+const money = formatUsd
 const day = (value: string) => new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Baghdad', dateStyle: 'medium',
 }).format(new Date(value))

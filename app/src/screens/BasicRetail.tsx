@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
+import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi } from '../lib/solo-api'
 import type { Outlet } from '../lib/types'
 
@@ -15,10 +16,8 @@ type Invoice = {
 }
 type SkuSales = { id: string; brand: string; sku: string; total: number }
 
-const money = (n: number) => new Intl.NumberFormat('en-IQ', {
-  style: 'currency', currency: 'IQD', maximumFractionDigits: 2,
-}).format(n)
-const sum = (amounts: number[]) => amounts.reduce((total, amount) => total + Math.round(amount * 100), 0) / 100
+const money = formatUsd
+const sum = sumUsd
 const brandOf = (item: CatalogItem) => item.brand ?? item.product_line
 const skuOf = (item: CatalogItem) => item.sku ? item.sku + ' · ' + item.flavour : item.flavour
 const message = (error: unknown) =>
@@ -104,7 +103,7 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
     if (!supabase) throw new Error('Connect Supabase to load the catalog.')
     const { data, error } = await supabase.from('solo_active_catalog')
       .select('id,brand,sku,product_line,flavour,wholesale_price')
-      .eq('active', true).eq('currency', 'IQD').order('product_line').order('flavour')
+      .eq('active', true).eq('currency', 'USD').order('product_line').order('flavour')
     if (error) throw error
     return data as CatalogItem[]
   }, String(revision))
@@ -128,7 +127,10 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
   const attempt = useRef<Attempt>(pendingAttempt)
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
-  const total = sum(selected.map(i => i.wholesale_price * lines[i.id]))
+  const total = sum(selected.map(i => multiplyUsd(i.wholesale_price, lines[i.id])))
+  let partialBalance: string | undefined
+  try { partialBalance = usdAmount(usdCents(total) - usdCents(initialReceipt || '0')) }
+  catch { partialBalance = undefined }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -138,8 +140,10 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
     setSuccess('')
     const items = selected.map(i => ({ sku_id: i.id, quantity: lines[i.id], price: i.wholesale_price }))
     const receipt = payment === 'Paid' ? String(total) : payment === 'Unpaid' ? '0' : initialReceipt
-    const initialAmount = Number(receipt)
-    if (!attempt.current && (!Number.isFinite(initialAmount) || initialAmount < 0 || initialAmount > total || (payment === 'Partial' && (initialAmount <= 0 || initialAmount >= total)) || Math.round(initialAmount * 100) / 100 !== initialAmount)) {
+    let initialAmount: bigint
+    try { initialAmount = usdCents(receipt) }
+    catch { setError('Enter a USD amount with at most two decimal places.'); setBusy(false); return }
+    if (!attempt.current && (initialAmount < 0n || initialAmount > usdCents(total) || (payment === 'Partial' && (initialAmount === 0n || initialAmount >= usdCents(total))))) {
       setError('Enter an initial receipt from zero to the invoice total, with at most two decimal places.')
       setBusy(false)
       return
@@ -155,7 +159,7 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
       const result = await soloApi(supabase).issueInvoice({
         id: attempt.current.id,
         request: {
-          outlet_id: outletId,
+          currency: 'USD', outlet_id: outletId,
           items: savedItems.map(item => ({ ...item, price: String(item.price) })),
           terms_days: Number(savedTerms),
           next_visit: savedNextVisit || undefined,
@@ -193,7 +197,7 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
         <section className="card">
           <h2>Review order</h2>
           {selected.map(item => <div className="summary-line" key={item.id}>
-            <span>{skuOf(item)} × {lines[item.id]}</span><strong>{money(item.wholesale_price * lines[item.id])}</strong>
+            <span>{skuOf(item)} × {lines[item.id]}</span><strong>{money(multiplyUsd(item.wholesale_price, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
         </section>
@@ -201,10 +205,10 @@ function OrderForm({ outletId, onSaved }: { outletId: string; onSaved: () => voi
           {['Paid', 'Partial', 'Unpaid'].map(value => <button type="button" key={value}
             aria-pressed={payment === value} onClick={() => setPayment(value)}>{value}</button>)}
         </nav>
-        {payment === 'Partial' && <label>Collected amount · IQD<input type="number" min="0.01" max={total}
+        {payment === 'Partial' && <label>Collected amount · USD<input type="number" min="0.01" max={total}
           step="0.01" required value={initialReceipt} onChange={e => setInitialReceipt(e.target.value)} /></label>}
         <div className="card summary-line"><span>Remaining balance</span>
-          <strong>{money(payment === 'Paid' ? 0 : payment === 'Unpaid' ? total : total - Number(initialReceipt || 0))}</strong></div>
+          <strong>{payment === 'Paid' ? money('0') : payment === 'Unpaid' ? money(total) : partialBalance === undefined ? '—' : money(partialBalance)}</strong></div>
         <label>Invoice due date<select value={terms} onChange={e => setTerms(e.target.value)}>
           <option value="0">Due today</option>
           {[7, 14, 30, 60].map(days => <option key={days} value={days}>In {days} days</option>)}
@@ -277,7 +281,7 @@ function SurveyForm({ outletId }: { outletId: string }) {
     const value = (name: string) => String(values.get(name) ?? '').trim()
     const promotion = kind === 'promotion'
     const fields = {
-      outlet_id: outletId, kind, brand_id: brandId, product_id: productId,
+      currency: 'USD', outlet_id: outletId, kind, brand_id: brandId, product_id: productId,
       brand: competitors.data?.brands.find(item => item.id === brandId)?.name ?? '',
       model: competitors.data?.products.find(item => item.id === productId)?.product_line ?? '',
       price: promotion ? null : Number(value('price')), offer: promotion ? value('offer') : null,
@@ -351,7 +355,7 @@ function SurveyForm({ outletId }: { outletId: string }) {
       {kind === 'promotion' ? <>
         <label>Offer<input name="offer" required maxLength={1000} /></label>
         <label>Offer photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhoto(e.target.files?.[0])} /></label>
-      </> : <label>Price in IQD<input name="price" type="number" required min="0" step="0.01" /></label>}
+      </> : <label>Price in USD<input name="price" type="number" required min="0" step="0.01" /></label>}
       <button className="primary">{busy ? 'Submitting…' : 'Submit survey'}</button>
     </fieldset>
     {error && <p className="error" role="alert">{error}</p>}
@@ -397,9 +401,9 @@ export function Dashboard() {
       {(breakdown === 'Brand'
         ? [...brands.entries()].map(([brand, skus]) => ({ id: brand, label: brand, total: sum(skus.map(i => i.total)) }))
         : data.skus.map(sku => ({ id: sku.id, label: sku.sku, total: sku.total })))
-        .sort((a, b) => b.total - a.total).map((item, _, all) => <div className="chart-row" key={item.id}>
+        .sort((a, b) => Number(b.total) - Number(a.total)).map((item, _, all) => <div className="chart-row" key={item.id}>
           <div className="chart-label"><span>{item.label}</span><strong>{money(item.total)}</strong></div>
-          <div className="track"><span style={{ width: Math.max(0, Math.min(100, all[0].total > 0 ? item.total / all[0].total * 100 : 0)) + '%' }} /></div>
+          <div className="track"><span style={{ width: Math.max(0, Math.min(100, Number(all[0].total) > 0 ? Number(item.total) / Number(all[0].total) * 100 : 0)) + '%' }} /></div>
         </div>)}
     </section>
     <Link className="card card-link" to="/orders"><span><strong>Payments</strong><br /><small className="muted">Invoices, collections and remaining balances</small></span><span aria-hidden="true">→</span></Link>

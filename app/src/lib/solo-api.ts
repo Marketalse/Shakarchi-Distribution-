@@ -1,22 +1,27 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Decimal strings preserve PostgreSQL numeric precision across the API boundary. */
-export type Iqd = string
+export type Usd = string
 export type Operation<T> = Readonly<{ id: string; request: T }>
 export type IssueRequest = {
+  currency: 'USD'
   outlet_id: string
   visit_id?: string
   terms_days: number
   next_visit?: string
-  items: { sku_id: string; quantity: number; price: Iqd }[]
-  initial_amount: Iqd
+  items: { sku_id: string; quantity: number; price: Usd }[]
+  initial_amount: Usd
   method: 'cash' | 'transfer'
 }
 export type CollectionRequest = {
+  currency: 'USD'
+  settlement_currency?: 'USD' | 'IQD'
+  source_amount?: string
+  rate_version_id?: string
   order_id: string
   outlet_id: string
   kind: 'receipt' | 'refund' | 'correction'
-  amount: Iqd
+  amount?: Usd
   method: 'cash' | 'transfer'
   receipt_id?: string
   reason?: string
@@ -51,7 +56,12 @@ export function soloApi(client: SupabaseClient) {
       version_id: string; outlet_id: string; visit_id: string; brand_id: string; product_id?: string
       answers: Record<string, string | number | boolean>
     }>) => call<{ run_id: string }>('submit_solo_survey', command),
+    publishRate: (command: Operation<{ exchange_rate_used: string; rate_source: string; valid_until: string }>) =>
+      call<{ rate_version_id: string }>('publish_solo_fx_rate', command),
+    updateProduct: (command: Operation<Record<string, unknown>>) =>
+      call<{ product_id: string }>('update_solo_product', command),
     importData: (command: Operation<{
+      currency?: 'USD'
       kind: 'brands' | 'products' | 'observations'; rows: Record<string, unknown>[]
     }>) => call<{ imported: number }>('import_solo_data', command),
   }
