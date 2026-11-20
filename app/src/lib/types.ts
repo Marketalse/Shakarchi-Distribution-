@@ -23,6 +23,9 @@ export interface Outlet {
   shop_phone?: string
   lat: number
   lng: number
+  location_accuracy?: number | null
+  location_captured_at?: string | null
+  location_source?: 'device_gps' | null
   address?: string
   province: string
   area: string

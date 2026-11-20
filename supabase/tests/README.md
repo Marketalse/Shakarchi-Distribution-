@@ -22,3 +22,8 @@ Existing product and brand IDs and classification flags are retained by 006. Our
 ## USD baseline — issue #21
 
 The harness additionally applies 007 and rehearses 008 on an empty USD database. It verifies cutover refusal when monetary records exist, exact USD amounts, manual-rate expiry/current-version checks, immutable settlement snapshots, local receipts/refunds/corrections, operation replay, owner isolation and catalog price-intent checks. It remains single-session synthetic coverage, not hosted UI or PostgreSQL concurrency proof.
+
+
+## Capture-once client location — #29
+
+Migration 011 preserves existing lat/lng and historical visit coordinates, adds nullable client GPS evidence, restricts coordinate replacements to the owner correction RPC, and rejects new visit-coordinate writes. Disposable tests cover metadata preservation, explicit correction, exact replay, coordinate validation, direct-write denial and nonowner denial. Navigation tests verify repeated links reuse the stored destination without calling geolocation. Embedded Maps SDKs/keys are not part of this release. The unpublished client/survey branch must renumber its competing 011 candidate before any future merge.

@@ -19,6 +19,7 @@ export interface VisitDraft {
  */
 export async function saveVisit(db: LocalDb, draft: VisitDraft): Promise<void> {
   const { visit, survey = [], order, lines = [], payment } = draft
+  if (visit.lat !== undefined || visit.lng !== undefined) throw new Error('Visits reuse the saved client location; new GPS samples are not accepted')
   if (lines.length > 0 && !order) throw new Error('Order lines need an order')
   if (order && lines.length === 0) throw new Error('An order needs at least one line')
 

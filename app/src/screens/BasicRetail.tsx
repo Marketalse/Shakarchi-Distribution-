@@ -6,6 +6,7 @@ import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/mone
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { ClientEdit, DynamicSurvey } from './CaptureForms'
+import { ClientLocation } from './ClientLocation'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -89,6 +90,7 @@ export function RetailDetail({ version }: { version: number }) {
     <main>
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
+      <ClientLocation retail={retail} allowCorrection onUpdated={() => setRevision(value => value + 1)} />
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}

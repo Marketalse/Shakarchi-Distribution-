@@ -6,11 +6,11 @@ export type PendingCommand = {
 }
 export type CommandRemote = (rpc: string, id: string, request: unknown) => Promise<unknown>
 const supported = new Set(['issue_solo_invoice', 'post_solo_collection', 'reschedule_solo_reminder',
-  'publish_solo_survey', 'submit_solo_survey', 'publish_solo_fx_rate', 'update_solo_product', 'import_solo_data', 'finish_solo_visit', 'update_solo_client', 'submit_solo_observation'])
+  'publish_solo_survey', 'submit_solo_survey', 'publish_solo_fx_rate', 'update_solo_product', 'import_solo_data', 'finish_solo_visit', 'correct_solo_client_location', 'update_solo_client', 'submit_solo_observation'])
 
 export async function sendCommand(db: LocalDb, ownerId: string, rpc: string, id: string, request: unknown, remote: CommandRemote) {
   if (!supported.has(rpc)) throw Error('Unsupported operation; retained for review.')
-  const previous = await db.commands.get(id) ?? (await db.commands.where('owner_id').equals(ownerId).toArray()).find(item => item.rpc === rpc && JSON.stringify(item.request) === JSON.stringify(request))
+  const previous = await db.commands.get(id)
   if (previous && (previous.owner_id !== ownerId || previous.rpc !== rpc || JSON.stringify(previous.request) !== JSON.stringify(request))) {
     throw Error('Operation identity already belongs to different details.')
   }
