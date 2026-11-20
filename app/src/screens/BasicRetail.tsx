@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
+import { ClientEdit, DynamicSurvey } from './CaptureForms'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -59,7 +60,7 @@ export function RetailDetail({ version }: { version: number }) {
   const [visitError, setVisitError] = useState('')
   const [visitBusy, setVisitBusy] = useState(false)
   useEffect(() => {
-    if (!outletId || tab === 'Summary' || !supabase) return
+    if (!outletId || (tab === 'Summary' || tab === 'Profile') || !supabase) return
     let active = true
     setVisitBusy(true)
     void openSharedVisit(supabase, outletId, tab === 'Order' ? 'order' : 'survey').then(
@@ -80,7 +81,7 @@ export function RetailDetail({ version }: { version: number }) {
   const [revision, setRevision] = useState(0)
   const { data: retail } = useRows(
     () => outletId ? db.outlets.get(outletId) : Promise.resolve(undefined),
-    String(outletId) + ':' + version,
+    String(outletId) + ':' + version + ':' + revision,
   )
   if (!outletId || !retail) return <main><Link to="/">Retail list</Link><p>Retail details are unavailable.</p></main>
 
@@ -89,9 +90,11 @@ export function RetailDetail({ version }: { version: number }) {
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
       <nav className="retail-tabs" aria-label="Retail actions">
-        {['Summary', 'Order', 'Survey'].map((label) =>
+        {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
+      {tab === 'Profile' && <ClientEdit retail={retail} onSaved={() => setRevision(value => value + 1)} />}
+      {tab === 'Survey forms' && visitId && !visitBusy && !visitError && <DynamicSurvey outletId={outletId} visitId={visitId} />}
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
       {visitBusy && <p role="status">Loading visit…</p>}
       {visitError && <p className="error" role="alert">{visitError}</p>}
@@ -339,10 +342,7 @@ function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }
         if (uploadError && String((uploadError as { statusCode?: string }).statusCode) !== '409') throw uploadError
         attempt.uploaded = true
       }
-      const { error: failure } = await supabase.from('market_observations').upsert(
-        { id: attempt.id, ...fields, photo_path: path }, { onConflict: 'id', ignoreDuplicates: true },
-      )
-      if (failure) throw failure
+      await soloApi(supabase).submitObservation({ id: attempt.id, request: { ...fields, price: fields.price === null ? null : value('price'), photo_path: path } })
       form.reset()
       setKind('competitor_price')
       setPhoto(undefined)

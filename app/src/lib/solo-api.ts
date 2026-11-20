@@ -45,6 +45,8 @@ export function soloApi(client: SupabaseClient) {
     }) as T
   }
   return {
+    updateClient: (command: Operation<Record<string, unknown>>) => call<{ outlet_id: string }>('update_solo_client', command),
+    submitObservation: (command: Operation<Record<string, unknown>>) => call<{ observation_id: string }>('submit_solo_observation', command),
     finishVisit: (command: Operation<{ visit_id: string; outcome?: string }>) => call<{ visit_id: string }>('finish_solo_visit', command),
     issueInvoice: (command: Operation<IssueRequest>) =>
       call<{ order_id: string; invoice_no: number }>('issue_solo_invoice', command),

@@ -11,7 +11,7 @@ const text = (values: FormData, name: string) => String(values.get(name) ?? '').
 const date = (value: unknown) => value
   ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(String(value)))
   : 'Unknown'
-const tables = ['products', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'outlets', 'fx_rate_versions', 'payment_fx_snapshots'] as const
+const tables = ['products', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'survey_runs', 'outlets', 'fx_rate_versions', 'payment_fx_snapshots'] as const
 
 async function readTable(table: string): Promise<Row[]> {
   if (!supabase) throw Error('Connect Supabase to load owner administration.')
@@ -44,6 +44,8 @@ export function OwnerAdmin() {
   const [editProduct, setEditProduct] = useState<Row>()
   const [productBrandId, setProductBrandId] = useState('')
   const [versionId, setVersionId] = useState('')
+  const [questions, setQuestions] = useState([{ id: crypto.randomUUID(), label: '', type: 'text', required: true, options: '' }])
+  const changeQuestion = (id: string, changes: Partial<(typeof questions)[number]>) => setQuestions(rows => rows.map(q => q.id === id ? { ...q, ...changes } : q))
   // A failed financial request retains its exact payload and operation UUID.
   type Pending = { label: string; command: Operation<unknown> } | null
   const [pendingView, setPendingView] = useState<Pending>(() => {
@@ -174,8 +176,8 @@ export function OwnerAdmin() {
           break
         }
         case 'publish': {
-          const questions = JSON.parse(get('questions'))
-          await perform('Survey version', { title: get('title'), questions },
+          const definition = questions.map(q => ({ id: q.id, label: q.label.trim(), type: q.type, required: q.required, ...(q.type === 'choice' ? { options: q.options.split('\n').map(v => v.trim()).filter(Boolean) } : {}) }))
+          await perform('Survey version', { title: get('title'), questions: definition },
             command => api.publishSurvey(command as Parameters<typeof api.publishSurvey>[0]))
           break
         }
@@ -183,7 +185,7 @@ export function OwnerAdmin() {
           if (!version) throw Error('Select a survey version.')
           const questions = version.questions as { id: string; type: string }[]
           const answers = Object.fromEntries(questions.flatMap(question => {
-            const value = get(question.id)
+            const value = get('answer:' + question.id)
             if (!value) return []
             return [[question.id, question.type === 'boolean' ? value === 'true' : question.type === 'number' ? Number(value) : value]]
           }))
@@ -348,7 +350,16 @@ export function OwnerAdmin() {
       <h2>Publish a fixed survey version</h2>
       <form {...formProps} data-kind="publish">
         <label>Title<input name="title" required /></label>
-        <label>Questions · JSON<textarea name="questions" rows={8} required defaultValue={JSON.stringify([{ id: 'available', label: 'Available?', type: 'boolean', required: true }], null, 2)} /></label>
+        {questions.map((q,index) => <fieldset key={q.id}>
+          <legend>Question {index + 1}</legend>
+          <label>Question label<input required value={q.label} onChange={e => changeQuestion(q.id,{ label: e.target.value })} /></label>
+          <label>Answer type<select value={q.type} onChange={e => changeQuestion(q.id,{ type:e.target.value })}>{['text','number','boolean','choice'].map(type => <option key={type}>{type}</option>)}</select></label>
+          <label><input type="checkbox" checked={q.required} onChange={e => changeQuestion(q.id,{required:e.target.checked})} />Required</label>
+          {q.type === 'choice' && <label>Choices · one per line<textarea required value={q.options} onChange={e => changeQuestion(q.id,{options:e.target.value})} /></label>}
+          {questions.length > 1 && <button type="button" onClick={() => setQuestions(rows => rows.filter(row => row.id !== q.id))}>Remove question</button>}
+        </fieldset>)}
+        <button type="button" disabled={questions.length >= 50} onClick={() => setQuestions(rows => [...rows,{id:crypto.randomUUID(),label:'',type:'text',required:true,options:''}])}>Add question</button>
+        <p>Publishing creates a permanent version. Publish another version to change a form without changing past answers.</p>
         {submitButton}
       </form>
       <h2>Capture answers</h2>
@@ -365,9 +376,9 @@ export function OwnerAdmin() {
         <p>Submitting starts or reuses the active visit for this client.</p>
         {(version.questions as { id: string; label: string; type: string; required: boolean; options?: string[] }[]).map(question =>
           <label key={question.id}>{question.label}{question.type === 'choice' || question.type === 'boolean'
-            ? <select name={question.id} required={question.required}><option value="">Choose</option>
+            ? <select name={'answer:' + question.id} required={question.required}><option value="">Choose</option>
               {(question.type === 'boolean' ? ['true', 'false'] : question.options || []).map(value => <option key={value}>{value}</option>)}</select>
-            : <input name={question.id} type={question.type === 'number' ? 'number' : 'text'} step="any" required={question.required} />}</label>)}
+            : <input name={'answer:' + question.id} type={question.type === 'number' ? 'number' : 'text'} step="any" required={question.required} />}</label>)}
         {submitButton}
       </form>}
     </>}
@@ -386,6 +397,8 @@ export function OwnerAdmin() {
       </section>}
     </>}
     {tab === 'Observations' && <>
+      <h2>Completed survey forms</h2>
+      <ul>{records('survey_runs').map(row => <li key={row.id}>{format(records('survey_versions').find(v => v.id === row.version_id)?.title)} · {date(row.created_at)}<pre>{JSON.stringify(row.answers,null,2)}</pre></li>)}</ul>
       <p>Imports accept competitor_price, new_brand and promotion observations. Supply outlet_id, visit_id, approved competitor brand_id and product_id, then price or offer, availability, facings and shelf_width_cm.</p>
       <ul>{records('market_observations').map(row => <li key={row.id}>
         {format(row.brand)} · {format(row.model)} · {format(row.price)} USD · {format(row.offer)} · {date(row.created_at)}
