@@ -16,3 +16,11 @@ Source: [initial migration](../../supabase/migrations/001_initial_schema.sql). T
 Outlet 1→many visits/orders/payments; visit 1→many answers, 0→1 order and 0→many payments; order 1→many lines and 0→many payments. `outlet_balances` aggregates signed sales and net amounts collected; `overdue_invoices` reports past-due orders with positive outstanding after linked payments. Paid/partial/unpaid are derived business states to reconcile, not a status column in this draft.
 
 RLS is enabled on all nine tables. Triggers block update/delete for orders, lines and payments. Review authenticated product cost exposure, record consistency across payment/order/visit, inactive users, assignment changes, read access to reports and the nearby-outlets function’s cross-assignment disclosure. Resolve SKU identity and payment allocation/reversal policy before importing records or using the outputs for finance.
+
+## Verified completion — 20 November 2026
+
+- Live/source migrations are now 001–012. Migration 012 adds owner-only client update and idempotent competitor-observation functions, preserving identity, saved coordinates, history and classification. Its live synthetic checks rolled back all fixtures.
+- Client editing, published survey forms, question builder and readable survey answers are deployed via PR #31; #25 is complete.
+- Current USD balances, all-time signed cash, overdue balances and due in-app reminders use existing views/ledger/RPCs via PR #32; #26 is complete. No additional finance tables or automated FX service were added.
+- Capture-once GPS is deployed. #29 remains open for phone permission/accuracy and native navigation acceptance. Multi-session finance concurrency remains a pilot check.
+- Separate physical catalog/competitor tables remain a proposal, not an approved replacement for the classified shared registry.
