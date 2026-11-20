@@ -7,6 +7,7 @@ import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { ClientEdit, DynamicSurvey } from './CaptureForms'
 import { ClientLocation } from './ClientLocation'
+import { currentReport, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -26,11 +27,11 @@ const skuOf = (item: CatalogItem) => item.sku ? item.sku + ' · ' + item.flavour
 const message = (error: unknown) =>
   error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error)
 
-async function rows<T>(table: string, columns: string, outletId?: string): Promise<T[]> {
+async function rows<T>(table: string, columns: string, outletId?: string, key = 'id'): Promise<T[]> {
   if (!supabase) throw new Error('Connect Supabase to load this page.')
   const result: T[] = []
   for (let offset = 0; ; offset += 500) {
-    let query = supabase.from(table).select(columns).order('id').range(offset, offset + 499)
+    let query = supabase.from(table).select(columns).order(key).range(offset, offset + 499)
     if (outletId) query = query.eq('outlet_id', outletId)
     const { data, error } = await query
     if (error) throw error
@@ -391,20 +392,36 @@ function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }
   </form>
 }
 
-export function Dashboard() {
+export function Dashboard({ version = 0 }: { version?: number }) {
   const [breakdown, setBreakdown] = useState('Brand')
+  const [refresh, setRefresh] = useState(0)
+  const [clock, setClock] = useState(Date.now)
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30000)
+    const focused = () => setRefresh(v => v + 1)
+    window.addEventListener('focus', focused)
+    return () => { clearInterval(timer); window.removeEventListener('focus', focused) }
+  }, [])
   const { data, error } = useRows(async () => {
     if (!supabase) throw new Error('Connect Supabase to load the dashboard.')
-    const [outlets, invoices, skus] = await Promise.all([
+    const [outlets, invoices, skus, cash, reminders, rates, costs] = await Promise.all([
       supabase.from('outlets').select('id', { count: 'exact', head: true }),
-      rows<Invoice>('basic_invoice_totals', 'id,total,payment_status'),
+      rows<Balance>('solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot'),
       rows<SkuSales>('basic_sku_sales', 'id,brand,sku,total'),
+      rows<CashEntry>('payments', 'id,order_id,amount'),
+      rows<Reminder>('collection_reminders', 'order_id,status,scheduled_at', undefined, 'order_id'),
+      rows<{id:string;version:number;exchange_rate_used:string;rate_source:string;valid_until:string}>('fx_rate_versions','id,version,exchange_rate_used,rate_source,valid_until'),
+      rows<Invoice>('basic_invoice_totals','id,total,investment,payment_status'),
     ])
     if (outlets.error) throw outlets.error
-    return { retails: outlets.count ?? 0, invoices, skus }
-  }, 'dashboard')
+    currentReport(invoices,cash,reminders,new Date()) // Validate unique financial identities before showing results.
+    return { retails: outlets.count ?? 0, invoices, skus, cash, reminders, rates, costs, loadedAt: new Date().toISOString() }
+  }, 'dashboard:' + version + ':' + refresh)
   if (error) return <main><h1>Dashboard</h1><p className="error" role="alert">{error}</p></main>
   if (!data) return <main><h1>Dashboard</h1><p role="status">Loading dashboard…</p></main>
+  const report = currentReport(data.invoices,data.cash,data.reminders,new Date(clock))
+  const rate = [...data.rates].sort((a,b) => b.version-a.version)[0]
+  const missingCosts = data.costs.filter(i => i.investment == null).length
   const brands = new Map<string, SkuSales[]>()
   for (const sku of data.skus) {
     const group = brands.get(sku.brand)
@@ -414,12 +431,37 @@ export function Dashboard() {
 
   return <main>
     <h1>Dashboard</h1>
+    <p className="muted">All-time USD totals · Current balances. Updated {new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(data.loadedAt))} · Baghdad time</p>
+    <button onClick={() => { setClock(Date.now()); setRefresh(v => v + 1) }}>Refresh report</button>
     <dl className="metrics">
-      <div><dt>Total sales</dt><dd>{money(sum(data.invoices.map(i => i.total)))}</dd></div>
+      <div><dt>Total sales</dt><dd>{money(report.sales)}</dd></div>
+      <div><dt>Net cash collected</dt><dd>{money(report.netCash)}</dd></div>
+      <div><dt>Still to collect</dt><dd>{money(report.outstanding)}</dd></div>
+      <div><dt>Overpayments</dt><dd>{money(report.overpayment)}</dd></div>
+      <div><dt>Overdue invoices</dt><dd>{money(report.overdue)}</dd></div>
       <div><dt>Total retails</dt><dd>{data.retails}</dd></div>
       {['Paid', 'Partially paid', 'Unpaid'].map(status =>
         <div key={status}><dt>{status} invoices</dt><dd>{data.invoices.filter(i => i.payment_status === status).length}</dd></div>)}
     </dl>
+    {report.discrepancy !== '0.00' && <p className="error" role="alert">Payment totals need reconciliation: {money(report.discrepancy)} difference. Refresh before using this report.</p>}
+    {report.unallocatedCash !== '0.00' && <p className="warn-text">Cash not matched to listed invoices: {money(report.unallocatedCash)}. Included in net cash, kept separate from invoice balances.</p>}
+    {report.unknownAging !== '0.00' && <p className="warn-text">Balance without a due date: {money(report.unknownAging)}. Not counted as overdue.</p>}
+    {missingCosts > 0 && <p className="warn-text">{missingCosts} invoices have incomplete cost snapshots. Complete profit reporting is unavailable.</p>}
+    <section className="card" aria-label="Due payment reminders">
+      <h2>Payments to follow up · {report.due.length}</h2>
+      <p>Unpaid and partly paid invoices get a reminder after four days. Collect the balance or choose another reminder time.</p>
+      {!report.due.length && <p>No payment reminders due.</p>}
+      <ul>{report.due.map(({invoice,scheduled_at}) => <li key={invoice.id}>
+        <strong>{invoice.recipient_snapshot?.name || 'Invoice #' + invoice.invoice_no}</strong> · #{invoice.invoice_no} · {money(invoice.outstanding)} remaining
+        <p>Reminder: {new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(scheduled_at!))}</p>
+        <Link className="button" to={'/admin?invoice=' + invoice.id}>Collect or set next reminder</Link>
+      </li>)}</ul>
+      <p className="muted">Reminders appear in the app. No push or email notifications.</p>
+    </section>
+    <section className="card"><h2>Parallel exchange rate</h2>
+      <p>{rate ? rate.exchange_rate_used + ' IQD per $1 · ' + rate.rate_source + (new Date(rate.valid_until).getTime() <= clock ? ' · Expired' : ' · Active') : 'No manual rate entered. USD payments remain available.'}</p>
+      <Link to="/admin">Manage rate in owner tools</Link>
+    </section>
     <section className="card">
       <div className="row"><h2>Sales by</h2><nav className="retail-tabs" aria-label="Sales breakdown">
         {['Brand', 'SKU'].map(value => <button key={value} aria-pressed={breakdown === value} onClick={() => setBreakdown(value)}>{value}</button>)}

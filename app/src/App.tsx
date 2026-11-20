@@ -51,7 +51,7 @@ export default function App() {
         : <Routes key={repId}>
           <Route path="/" element={<Outlets version={sync.version + sync.pending} />} />
           <Route path="/outlets/new" element={<NewOutlet repId={repId} onSaved={() => void sync.refresh()} />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard version={sync.version} />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
           <Route path="/admin" element={<OwnerAdmin />} />
