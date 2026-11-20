@@ -11,6 +11,6 @@ See the [three client-centered workflows](Form-workflows.md) for the exact form 
 | Collect | Capture cash/transfer, amount, collector and invoice link when applicable | Full, partial and overdue examples reconcile; corrections preserve history |
 | Finish & sync | Save offline; retry with stable IDs; surface errors and pending items | Reconnect/retry yields one copy; measured completion under three minutes |
 
-Outlet capture: name, optional owner/staff/contact details, GPS, written address, province, area, an approved outlet type, customer/prospect, credit terms, assignee and creator. The outline proposes retail, semi-wholesale, wholesale, hypermarket, supermarket and kiosk; confirm taxonomy and staff vs shop phone before freezing fields.
+Client capture requirements are finalized in [M1 client profile acceptance](Form-workflows.md#m1-client-profile-acceptance): one store per client record, separate owner account identity, required store/location fields, optional contacts, nearby duplicate warnings and explicit location correction. The existing creation lists remain the solo baseline. No parent-company grouping or additional roles are introduced.
 
 Dashboard: sales, collections, outstanding/overdue and area coverage. Advisor: cite aggregate metrics, periods and caveats; no autonomous business actions. Standalone invoice workflow, inventory/warehouses, marketing, delivery and expanded V2 roles need separate scope decisions. Owner-only pilot does not remove the need to verify rep boundaries before rollout.

@@ -15,3 +15,7 @@ The Notion day plan below is historical planning context; revise dates after app
 2. **M3B — Market survey:** add client selection, survey type, a question list, managed brands and linked answers; pilot the form with the capture flow.
 3. **M4 — Field pilot:** validate data completeness, timing and poor-signal behavior; decide when to expand users.
 4. **Separate follow-on work:** orders and collections proceed after finance rules are approved. They are not launch gates for capture or the survey. M5 and M6 use agreed metrics as reliable data becomes available.
+
+## M1 requirements acceptance — 20 November 2026
+
+Client-profile requirements for [#7](https://github.com/Marketalse/Shakarchi-Distribution-/issues/7) are finalized in [the accepted field contract](../Product/Form-workflows.md#m1-client-profile-acceptance). Creation/update identity, optional contacts, duplicate warnings and location correction use the implemented solo model. Phone navigation acceptance stays in #29; closing M1 does not close the field pilot.
