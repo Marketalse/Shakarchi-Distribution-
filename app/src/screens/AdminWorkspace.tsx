@@ -12,6 +12,7 @@ import { Orders, OwnerProfile } from './OwnerPages';
 import { OwnerAdmin } from './OwnerAdmin';
 import { ServiceAreas } from './ServiceAreas';
 import '../admin.css';
+import { fieldWebsite } from '../lib/app-links';
 type Workspace = {
   data: AdminData;
   userId: string;
@@ -637,7 +638,7 @@ export function AdminWorkspace({
 <small>Solo workspace</small>
 </span>
 </Link>
-<Link className="admin-field-link" to="/dashboard">Open field app →</Link>
+{fieldWebsite('/dashboard') && <a className="admin-field-link" href={fieldWebsite('/dashboard')}>Open field app →</a>}
 </div>
 </aside>
   <div className="admin-main">
@@ -668,7 +669,7 @@ export function AdminWorkspace({
 <div>
 <h1>{heading[0]}</h1>
 <p>{heading[1]}</p>
-</div>{location.pathname === '/admin/clients' && <Link className="admin-primary" to="/admin/clients/new">+ New client</Link>}{segment === 'orders' && <Link className="admin-secondary" to="/orders">Open field invoices →</Link>}</div>
+</div>{location.pathname === '/admin/clients' && <Link className="admin-primary" to="/admin/clients/new">+ New client</Link>}{segment === 'orders' && <Link className="admin-secondary" to="/admin/clients">Choose client for a new order →</Link>}</div>
    {syncError && <p role="alert" className="error">Sync paused: {syncError}. Pending records are retained.</p>}{error && <div className="admin-error" role="alert">Could not refresh admin data: {error} <button onClick={refresh}>Retry</button>{data && <small>Showing the last successful load from {date(data.loadedAt)}.</small>}</div>}
    {!data ? loading ? <p role="status">Loading your workspace…</p> : null : <WorkspaceContext.Provider value={{
         data,
