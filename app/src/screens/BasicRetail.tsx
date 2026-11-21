@@ -122,7 +122,6 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
   return <>
     <dl className="metrics">
       <div><dt>Location</dt><dd>{retail.address || [retail.area, retail.province].join(', ')}</dd></div>
-      <div><dt>↗ Total sales</dt><dd title={data?money(sum(data.map(x=>x.total))):undefined}>{data ? formatUsdSummary(sum(data.map(x => x.total))) : '—'}</dd></div>
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
