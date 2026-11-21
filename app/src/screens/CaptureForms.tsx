@@ -102,13 +102,13 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if(!draftRef.current || !version || !session || busyRef.current)return
-    const form=event.currentTarget
+    const values=new FormData(event.currentTarget)
     busyRef.current=true;setBusy(true);setError('')
     try {
       await writes.current.catch(()=>{})
       await saveSurveyDraft(db,draftRef.current)
       if(!reference?.brands.some(b=>b.id===draftRef.current!.brand_id && !b.is_own && b.active))throw Error('Choose an approved competitor.')
-      const answers=surveyAnswers(version.questions,new FormData(form))
+      const answers=surveyAnswers(version.questions,values)
       const submittedId=draftRef.current.id
       await queueSurveyDraft(db,draftRef.current,answers)
       const next=newSurveyDraft(session);draftRef.current=next;setDraft(next);setNotice('Survey saved on this device. Waiting to sync.')

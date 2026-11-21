@@ -24,3 +24,10 @@ Legacy financial queue rows are retained for explicit reconciliation under #12; 
 Exact matching to the updated 27-screen Figma design remains pending: the design-context tool returned its plan limit, so no high-fidelity screen response was available. Functional M3 changes do not count as completing the visual redesign.
 
 Access and sync changes require PR review before release under AGENTS.md. No production readiness or milestone closure is claimed.
+
+## Recovery verification — 21 November 2026
+Shared visit database regression passed: order/survey starts reuse one open stop, explicit finish and replay do not duplicate it, next stop and second-user denial behave correctly. 48 app tests passed.
+
+A real browser fixture exposed a submission bug: setting busy disabled the fieldset before FormData was constructed after an await. The correction snapshots values at submit time before disabling controls. Browser verification then retained No/zero/choice answers through reload, queued a survey while the mock server was unavailable, retained it through another reload, synced after recovery and finished only afterward. Visible call sequence: open_solo_visit, submit_solo_survey, finish_solo_visit. This is simulated server failure in a desktop browser, not a phone flight-mode test. No production form or business record created.
+
+Phone acceptance remains open under #41/#9. Owner uses iPhone/Safari. Open production online and Sync first; use an existing approved form/client only. Turn on flight mode and turn Wi-Fi off, enter survey answers, wait for Draft saved, reload and reopen the same client/form; verify answers remain. Save survey, restore network, Sync, verify one submission, then Finish survey visit. Do not clear Safari website data with pending records. If no approved form is available, stop; owner templates remain pending rather than inventing a production survey. Record actual result before closing phone acceptance.
