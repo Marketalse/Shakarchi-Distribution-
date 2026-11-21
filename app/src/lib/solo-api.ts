@@ -1,3 +1,4 @@
+import {verifySyncOwner} from './sync-access'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { db } from './db'
 import { sendCommand } from './commands'
@@ -6,12 +7,13 @@ import { sendCommand } from './commands'
 export type Usd = string
 export type Operation<T> = Readonly<{ id: string; request: T }>
 export type IssueRequest = {
+  contract_version: 2
   currency: 'USD'
   outlet_id: string
   visit_id?: string
   terms_days: number
   next_visit?: string
-  items: { sku_id: string; quantity: number; price: Usd }[]
+  items: { sku_id: string; quantity: number; price: Usd; uom: 'pack'; items_per_half_pack: number; packs_per_box: number }[]
   initial_amount: Usd
   method: 'cash' | 'transfer'
 }
@@ -40,6 +42,7 @@ export function soloApi(client: SupabaseClient) {
     if (authError || !session) throw Error('Sign in before posting an operation.')
     return await sendCommand(db, session.user.id, name, command.id, command.request, async (rpc, id, request) => {
       if (rpc === 'update_solo_client' && await db.outbox.where('table').equals('outlets').filter(row => row.row_id === (request as {outlet_id?:string}).outlet_id).count()) throw Error('Client edit is saved locally. Sync the new client first.')
+      await verifySyncOwner(client,session.user.id)
       const { data, error } = await client.rpc(rpc, { p_operation: id, p_request: request })
       if (error) throw Object.assign(new Error(error.message), { code: error.code })
       return data
@@ -52,7 +55,7 @@ export function soloApi(client: SupabaseClient) {
     correctLocation: (command: Operation<Record<string, unknown>>) => call<{ outlet_id: string }>('correct_solo_client_location', command),
     finishVisit: (command: Operation<{ visit_id: string; outcome?: string }>) => call<{ visit_id: string }>('finish_solo_visit', command),
     issueInvoice: (command: Operation<IssueRequest>) =>
-      call<{ order_id: string; invoice_no: number }>('issue_solo_invoice', command),
+      call<{ order_id: string; invoice_no: number }>('issue_solo_invoice_v2', command),
     postCollection: (command: Operation<CollectionRequest>) =>
       call<{ order_id: string; entry_id: string | null }>('post_solo_collection', command),
     rescheduleReminder: (command: Operation<{ order_id: string; scheduled_at: string }>) =>
@@ -68,10 +71,10 @@ export function soloApi(client: SupabaseClient) {
     publishRate: (command: Operation<{ exchange_rate_used: string; rate_source: string; valid_until: string }>) =>
       call<{ rate_version_id: string }>('publish_solo_fx_rate', command),
     updateProduct: (command: Operation<Record<string, unknown>>) =>
-      call<{ product_id: string }>('update_solo_product', command),
+      call<{ product_id: string }>('update_solo_product_v2', command),
     importData: (command: Operation<{
       currency?: 'USD'
       kind: 'brands' | 'products' | 'observations'; rows: Record<string, unknown>[]
-    }>) => call<{ imported: number }>('import_solo_data', command),
+    }>) => call<{ imported: number }>('import_solo_data_v2', command),
   }
 }

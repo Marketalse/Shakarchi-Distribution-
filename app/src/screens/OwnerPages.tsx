@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MobileIcon } from './MobileIcon'
-import { invoiceItem, type ProductSnapshot } from '../lib/invoice-display'
+import { invoiceItem, invoiceQuantity, invoiceUnit, invoiceSellingPrice, type ProductSnapshot } from '../lib/invoice-display'
 import '../invoice.css'
 import { formatUsd } from '../lib/money'
 import { supabase } from '../lib/supabase'
@@ -97,7 +97,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <header className="invoice-brand">{logo && <img src={logo} alt="Shakarchi Distribution logo" onError={event=>{event.currentTarget.hidden=true}} />}<strong>Shakarchi Distribution</strong></header>
         <div className="row"><h2>Invoice #{selected.invoice_no}</h2><span className="tag">{selected.payment_status}</span></div>
         <div className="invoice-recipient"><small className="muted">Bill to</small><h3>{selected.recipient_snapshot?.name || (lineState?.id===selected.id && lineState.clientName) || 'Client name unavailable'}</h3><p className="muted">{day(selected.created_at)}</p></div>
-        {!lines ? lineError ? <p>Invoice items could not be loaded.</p> : <p role="status">Loading invoice…</p> : <table className="invoice-items"><caption className="sr-only">Invoice items in USD</caption><thead><tr><th>Item</th><th>Brand</th><th>Mode / category</th><th>Unit price · USD</th><th>Qty</th><th>Total · USD</th></tr></thead><tbody>{lines.map(line=>{const item=invoiceItem(line.product_snapshot);return <tr key={line.id}><td data-label="Item">{item.name}</td><td data-label="Brand">{item.brand}</td><td data-label="Mode / category">{item.mode}</td><td data-label="Unit price · USD">{money(line.unit_price)}</td><td data-label="Qty">{line.quantity}</td><td data-label="Total · USD">{money(line.line_total)}</td></tr>})}</tbody></table>}
+        {!lines ? lineError ? <p>Invoice items could not be loaded.</p> : <p role="status">Loading invoice…</p> : <table className="invoice-items"><caption className="sr-only">Invoice items in USD</caption><thead><tr><th>Item</th><th>Brand</th><th>Mode / category</th><th>Unit price · USD</th><th>Qty</th><th>Total · USD</th></tr></thead><tbody>{lines.map(line=>{const item=invoiceItem(line.product_snapshot);return <tr key={line.id}><td data-label="Item">{item.name}</td><td data-label="Brand">{item.brand}</td><td data-label="Mode / category">{item.mode}</td><td data-label="Unit price · USD">{money(invoiceSellingPrice(line.product_snapshot,line.unit_price))}{invoiceUnit(line.product_snapshot)}</td><td data-label="Qty">{invoiceQuantity(line.product_snapshot,line.quantity)}</td><td data-label="Total · USD">{money(line.line_total)}</td></tr>})}</tbody></table>}
         <div className="summary-line"><span>Total</span><strong>{money(selected.total)}</strong></div>
         <div className="summary-line"><span>Collected</span><strong>{money(selected.collected)}</strong></div>
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>

@@ -1,3 +1,4 @@
+import type { SalesLine } from './catalog-report';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { baghdadDay, currentReport, type Balance, type CashEntry, type Reminder } from './reporting';
 import { sumUsd, usdCents } from './money';
@@ -21,7 +22,7 @@ export type AdminProduct = {
   active: boolean;
   is_own_brand: boolean;
   currency: string;
-  wholesale_price: string | null;
+  selling_price: string | null;
 };
 export type AdminSurvey = {
   id: string;
@@ -59,6 +60,7 @@ export type AdminData = {
     kind: string;
     price: string | null;
   }[];
+  invoiceLines?: SalesLine[];
   loadedAt: string;
 };
 export async function adminRows<T>(client: SupabaseClient, table: string, columns: string, key = 'id'): Promise<T[]> {
@@ -74,9 +76,11 @@ export async function adminRows<T>(client: SupabaseClient, table: string, column
   }
 }
 export async function loadAdminData(client: SupabaseClient): Promise<AdminData> {
-  const [clients, invoices, cash, reminders, products, surveys, runs, observations] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,wholesale_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price')]);
+  const [clients, invoices, cash, reminders, products, surveys, runs, observations] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,selling_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price')]);
   currentReport(invoices, cash, reminders, new Date());
+  const invoiceLines=await adminRows<SalesLine>(client, 'order_lines', 'id,order_id,line_total,product_snapshot');
   return {
+    invoiceLines,
     clients,
     invoices,
     cash,

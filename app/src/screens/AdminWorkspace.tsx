@@ -1,3 +1,4 @@
+import {catalogSales} from '../lib/catalog-report';
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { liveQuery } from 'dexie';
@@ -145,6 +146,8 @@ function Overview() {
     } = useWorkspace(),
     summary = adminSummary(data, period, new Date(clock));
   const periodLabel = period === 'week' ? 'Last 7 days' : period === 'month' ? 'This month' : 'All recorded dates';
+  let salesGroups: ReturnType<typeof catalogSales>=[],groupError='';
+  try{const issued=new Set(data.invoices.filter(i=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Baghdad',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.created_at));return (!summary.start || d>=summary.start)&&d<=summary.today}).map(i=>i.id));salesGroups=catalogSales(data.invoiceLines??[],issued,summary.sales)}catch(e){groupError=fail(e)}
   const max = summary.chart.reduce((v, b) => usdCents(b.total) > usdCents(v) ? b.total : v, '0.00');
   const collectionProgress = percentOf(summary.allocated, summary.invoiced);
   return <>
@@ -156,6 +159,10 @@ function Overview() {
 </div>
   {summary.report.discrepancy !== '0.00' && <p role="alert" className="error">Payment reconciliation required: {formatUsd(summary.report.discrepancy)} difference. Refresh before relying on this report.</p>}
   {summary.report.unallocatedCash !== '0.00' && <p className="warn-text">Unallocated cash {formatUsd(summary.report.unallocatedCash)} is separate from invoice collection progress.</p>}
+  <Panel title="Sales by brand → product line → item">
+<p className="admin-subtle">Issued invoice cohort · USD · original invoice descriptions</p>
+{groupError ? <p role="alert">{groupError}</p> : !salesGroups.length ? <p>No issued sales in this period.</p> : [...new Set(salesGroups.map(r=>r.brand))].map(brand=><details key={brand}><summary>{brand} · {formatUsd(sumUsd(salesGroups.filter(r=>r.brand===brand).map(r=>r.total)))}</summary>{[...new Set(salesGroups.filter(r=>r.brand===brand).map(r=>r.line))].map(line=><details key={line}><summary>{line} · {formatUsd(sumUsd(salesGroups.filter(r=>r.brand===brand&&r.line===line).map(r=>r.total)))}</summary><ul>{salesGroups.filter(r=>r.brand===brand&&r.line===line).map(row=><li key={row.variant}>{row.variant}: {formatUsd(row.total)}</li>)}</ul></details>)}</details>)}
+</Panel>
   <div className="admin-grid">
 <Panel title="Sales performance" action={<span className="admin-badge">{period === 'all' ? 'Last 30 days' : periodLabel}</span>}>
 <p className="admin-subtle">Invoiced sales · USD · Baghdad dates</p>

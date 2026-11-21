@@ -1,3 +1,4 @@
+import {verifySyncOwner} from './sync-access'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { flushCapture } from './capture-store'
 import { cacheServiceAreas } from './service-areas'
@@ -30,22 +31,28 @@ export function useSync(ownerId: string | undefined) {
     running.current = true
     setBusy(true)
     try {
-      const result = await flush(db, supabaseRemote(supabase))
+      if (!navigator.locks) throw Error('Safe sync requires a browser with Web Locks support. Pending records are retained.');
+      await navigator.locks.request('wsd-workspace-sync', async () => {
+      await verifySyncOwner(supabase!,ownerId)
+      const result = await flush(db, {insertIfMissing:async(table,row)=>{await verifySyncOwner(supabase!,ownerId);await supabaseRemote(supabase!).insertIfMissing(table,row)}})
       const problems:string[]=[]
       if (result.stoppedBy) {
         if (await db.outbox.where('table').equals('outlets').count()) throw Error(result.stoppedBy)
         problems.push(result.stoppedBy)
       }
-      await flushCapture(db,ownerId,captureRemote(supabase))
+      const capture=captureRemote(supabase!)
+      await flushCapture(db,ownerId,{openVisit:async(id,outlet)=>{await verifySyncOwner(supabase!,ownerId);return capture.openVisit(id,outlet)},submit:async(id,request)=>{await verifySyncOwner(supabase!,ownerId);return capture.submit(id,request)},finish:async(id,visit)=>{await verifySyncOwner(supabase!,ownerId);return capture.finish(id,visit)}})
       await flushCommands(db, ownerId, async (rpc, id, request) => {
+        await verifySyncOwner(supabase!,ownerId)
         const { data, error } = await supabase!.rpc(rpc, { p_operation: id, p_request: request })
         if (error) throw Object.assign(new Error(error.message), { code: error.code })
         return data
       })
-      await pullReference(db, supabaseSource(supabase))
-      await cacheCaptureReference(db,ownerId,supabase)
-      try{await cacheServiceAreas(db,ownerId,supabase)}catch{/* Optional settings migration: retain the last known list. */}
+      await pullReference(db, supabaseSource(supabase!))
+      await cacheCaptureReference(db,ownerId,supabase!)
+      try{await cacheServiceAreas(db,ownerId,supabase!)}catch{/* Optional settings migration: retain the last known list. */}
       setError(problems.join(' · '))
+      })
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
