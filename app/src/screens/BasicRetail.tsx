@@ -6,6 +6,7 @@ import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCen
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
+import { MobileIcon } from './MobileIcon'
 import { StoreNavigation } from './StoreNavigation'
 import { currentReport, baghdadDay, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
@@ -23,7 +24,7 @@ type SkuSales = { id: string; brand: string; sku: string; total: number }
 const money = formatUsd
 const sum = sumUsd
 const brandOf = (item: CatalogItem) => item.brand ?? item.product_line
-const skuOf = (item: CatalogItem) => item.sku ? item.sku + ' · ' + item.flavour : item.flavour
+const skuOf = (item: CatalogItem) => item.flavour || item.product_line
 const message = (error: unknown) =>
   error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error)
 
@@ -92,15 +93,14 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
   return (
     <main>
       <Link to="/">Retail list</Link>
-      <h1>{retail.retail_name}</h1>
-      <StoreNavigation retail={retail} />
+      <section className="card client-heading"><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} /></section>
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
       {tab === 'Profile' && <section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
+      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary retail={retail} revision={revision} /></>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
@@ -263,7 +263,7 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
             onClick={() => setBrand(value)}>{value}</button>)}
         </nav>
         {catalog.data?.filter(item => !brand || brandOf(item) === brand).map(item => <div className="card sku-row" key={item.id}>
-          <img src="/wireframe/sku.svg" width="30" height="30" alt="" />
+          <span className="product-thumbnail"><MobileIcon name="box" size={32} /></span>
           <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(item.wholesale_price)} / unit</p></div>
           <div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}

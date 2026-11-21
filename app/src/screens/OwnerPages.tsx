@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { MobileIcon } from './MobileIcon'
 import { formatUsd } from '../lib/money'
 import { supabase } from '../lib/supabase'
 
@@ -150,17 +151,19 @@ export function OwnerProfile({ userId, embedded=false, onChanged }: { userId: st
     setBusy(false)
   }
   return <main>
-    <div className="card"><p className="muted">Owner profile</p><h2 className="owner-name">{profile?.full_name || 'Your account'}</h2></div>
+    <div className="card account-card"><span className="account-avatar"><MobileIcon name="user" size={26} /></span><div><h2 className="owner-name">{profile?.full_name || 'Your account'}</h2><p className="muted">Owner · Admin</p></div></div>
     {!profile && !error && <p role="status">Loading profile…</p>}
-    {profile && <form className="form" onSubmit={event => void save(event)}>
+    {profile && <details className="profile-editor" open={embedded || undefined}><summary><MobileIcon name="edit" size={22} />Edit profile</summary><form className="form" onSubmit={event => void save(event)}>
       <label>Full name<input name="name" defaultValue={profile.full_name} autoComplete="name" required /></label>
       <label>Phone<input name="phone" type="tel" defaultValue={profile.phone ?? ''} autoComplete="tel" /></label>
       <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
-    </form>}
+    </form></details>}
     {!embedded && <div className="profile-links">
-      <Link className="card card-link" to="/admin">Admin hub <span aria-hidden="true">→</span></Link>
-      <Link className="card card-link" to="/orders">Invoices and collections <span aria-hidden="true">→</span></Link>
-      <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>
+      <Link className="card card-link" to="/admin"><MobileIcon name="settings" />Admin hub <span aria-hidden="true">→</span></Link>
+      <Link className="card card-link" to="/orders"><MobileIcon name="invoice" />Invoices and collections <span aria-hidden="true">→</span></Link>
+      <Link className="card card-link" to="/admin/catalog"><MobileIcon name="box" />Products and brands <span aria-hidden="true">→</span></Link>
+      <Link className="card card-link" to="/reports"><MobileIcon name="chart" />Reports <span aria-hidden="true">→</span></Link>
+      <button className="button" onClick={() => void supabase?.auth.signOut()}><MobileIcon name="logout" size={20} />Sign out</button>
     </div>}
     {error && <p className="error" role="alert">{error}</p>}
     {notice && <p className="ok-text" role="status">{notice}</p>}

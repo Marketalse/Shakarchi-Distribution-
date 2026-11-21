@@ -88,11 +88,11 @@ export async function loadAdminData(client: SupabaseClient): Promise<AdminData> 
     loadedAt: new Date().toISOString()
   };
 }
-export type AdminPeriod = 'week' | 'month' | 'all';
+export type AdminPeriod = 'today' | 'week' | 'month' | 'all';
 const shiftDay = (day: string, offset: number) => new Date(Date.parse(day + 'T12:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
-export function adminSummary(data: AdminData, period: AdminPeriod, at: Date) {
+export function adminSummary(data: Pick<AdminData, 'clients' | 'invoices' | 'cash' | 'reminders'>, period: AdminPeriod, at: Date) {
   const today = baghdadDay(at),
-    start = period === 'week' ? shiftDay(today, -6) : period === 'month' ? today.slice(0, 7) + '-01' : undefined;
+    start = period === 'today' ? today : period === 'week' ? shiftDay(today, -6) : period === 'month' ? today.slice(0, 7) + '-01' : undefined;
   const inPeriod = (value: string) => {
     const day = baghdadDay(new Date(value));
     return (!start || day >= start) && day <= today;

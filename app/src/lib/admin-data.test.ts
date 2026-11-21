@@ -112,3 +112,11 @@ it('renders missing timestamps honestly instead of crashing a view', () => {
   expect(formatAdminDate('invalid')).toBe('Date unavailable');
   expect(formatAdminDate('2026-11-20T22:00:00Z')).toBe('21 Nov 2026');
 });
+
+it('today uses the Baghdad boundary, excludes future invoices and keeps prior debt visible', () => {
+  const invoice = { id: 'past', invoice_no: 1, outlet_id: 'c', total: '2.25', collected: '0.00', outstanding: '2.25', overpayment: '0.00', due_date: null, payment_status: 'Unpaid', created_at: '2026-11-20T20:59:59Z' };
+  const summary = adminSummary({ ...data, invoices: [invoice, { ...invoice, id: 'today', invoice_no: 2, total: '3.35', outstanding: '3.35', created_at: '2026-11-20T21:00:00Z' }, { ...invoice, id: 'future', invoice_no: 3, created_at: '2026-11-21T21:00:00Z' }] }, 'today', new Date('2026-11-21T10:00:00Z'));
+  expect(summary.sales).toBe('3.35');
+  expect(summary.chart).toEqual([{day:'2026-11-21',total:'3.35'}]);
+  expect(summary.report.outstanding).toBe('7.85');
+});

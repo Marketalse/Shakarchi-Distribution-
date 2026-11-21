@@ -10,6 +10,9 @@ import { NewOutlet } from './screens/NewOutlet'
 import { Dashboard, RetailDetail } from './screens/BasicRetail'
 import { Orders, OwnerProfile } from './screens/OwnerPages'
 import { Visit } from './screens/Visit'
+import { MobileIcon } from './screens/MobileIcon'
+import { MobileOverview } from './screens/MobileOverview'
+import './mobile.css'
 import { NewPassword } from './screens/NewPassword'
 
 const AdminWorkspace=lazy(()=>import('./screens/AdminWorkspace').then(module=>({default:module.AdminWorkspace})))
@@ -21,28 +24,28 @@ export default function App() {
   const repId = session?.user.id
   const { pathname } = useLocation()
   const adminMode=(pathname==='/admin'||pathname.startsWith('/admin/')) && access.allowed && !recovering
-  const title = pathname === '/dashboard' ? 'Overview'
+  const title = pathname === '/reports' ? 'Reports' : pathname === '/dashboard' ? 'Overview'
     : pathname === '/orders' ? 'Orders'
     : pathname === '/me' ? 'Me'
     : pathname.startsWith('/admin') ? 'Admin hub'
-    : pathname === '/outlets/new' ? 'New retail'
+    : pathname === '/outlets/new' ? 'New client'
     : pathname.startsWith('/retails/') ? 'Retail'
     : pathname.startsWith('/visit/') ? 'Visit'
-    : 'Retails'
+    : 'Your clients'
   const tabs = [
-    ['/dashboard', 'Dashboard', 'dashboard'],
-    ['/', 'Retails', 'retails'],
-    ['/orders', 'Orders', 'orders'],
-    ['/me', 'Me', 'profile'],
+    ['/dashboard', 'Overview', 'home'],
+    ['/', 'Clients', 'shop'],
+    ['/orders', 'Orders', 'cart'],
+    ['/me', 'Me', 'user'],
   ]
 
   return (
-    <div className={adminMode?'admin-app':'app-shell'}>
-      {!adminMode && <header className="top">
+    <div className={adminMode?'admin-app':`app-shell mobile-shell ${!repId || recovering ? 'auth-shell' : ''}`}>
+      {!adminMode && repId && !recovering && <header className="top">
         <div>
           <Link to={repId ? '/dashboard' : '/'} className="wordmark">Shakarchi Distribution</Link>
           <h1>{repId ? recovering ? 'New password' : title : 'Sign in'}</h1>
-          <p>{repId ? 'Your wholesale workspace' : 'Owner access'}</p>
+          <p>{pathname === '/dashboard' ? 'Let’s make it count.' : pathname === '/' ? 'Every relationship matters.' : pathname === '/orders' ? 'Your invoices, all in one place.' : pathname === '/outlets/new' ? 'Start a new relationship.' : pathname === '/me' ? 'Your account and tools.' : 'Your wholesale workspace'}</p>
         </div>
         {repId && access.allowed && <button className="sync-button" onClick={() => void sync.syncNow()}
           disabled={!sync.online || sync.busy} aria-label="Sync records">
@@ -58,7 +61,8 @@ export default function App() {
         : <Routes key={repId}>
           <Route path="/" element={<Outlets version={sync.version + sync.pending} />} />
           <Route path="/outlets/new" element={<NewOutlet repId={repId} onSaved={() => void sync.refresh()} />} />
-          <Route path="/dashboard" element={<Dashboard version={sync.version} />} />
+          <Route path="/dashboard" element={<MobileOverview version={sync.version} />} />
+          <Route path="/reports" element={<Dashboard version={sync.version} />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
           <Route path="/admin/*" element={<Suspense fallback={<main role="status">Loading admin workspace…</main>}><AdminWorkspace userId={repId} onSync={sync.syncNow} syncBusy={sync.busy} syncError={sync.error} pendingCount={sync.pending} online={sync.online}/></Suspense>} />
@@ -68,7 +72,7 @@ export default function App() {
         </Routes>}
       {repId && access.allowed && !recovering && !adminMode && <nav className="footer-nav" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => <NavLink end={to === '/'} to={to} key={to}>
-          <img src={'/wireframe/' + icon + '.svg'} width="24" height="24" alt="" />
+          <span className="dock-icon"><MobileIcon name={icon} /></span>
           {label}
         </NavLink>)}
       </nav>}
