@@ -1,3 +1,8 @@
+import {liveQuery} from 'dexie'
+import {fieldCatalog} from '../lib/catalog'
+import {stagePhoto} from '../lib/attachments'
+import {fieldTable,offlineOwner,cachedFieldRead} from '../lib/offline'
+import {openCaptureSession,requestCaptureFinish} from '../lib/capture-store'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
@@ -5,8 +10,7 @@ import { supabase } from '../lib/supabase'
 import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, usdCents } from '../lib/money'
 import { packTotal, packBreakdown } from '../lib/pack'
 import { CREDIT_DAYS, checkoutBalance, validTerms } from '../lib/checkout'
-import { soloApi, operation } from '../lib/solo-api'
-import { openSharedVisit } from '../lib/shared-visit'
+import { soloApi } from '../lib/solo-api'
 import { DynamicSurvey } from './CaptureForms'
 import { ClientOverdue } from './ClientOverdue'
 import { MobileIcon } from './MobileIcon'
@@ -33,15 +37,18 @@ const message = (error: unknown) =>
 
 async function rows<T>(table: string, columns: string, outletId?: string, key = 'id'): Promise<T[]> {
   if (!supabase) throw new Error('Connect Supabase to load this page.')
+  {const cached=await fieldTable<T & {outlet_id?:string}>(db,table);if(cached)return (outletId?cached.filter(r=>r.outlet_id===outletId):cached) as T[]}
+  return cachedFieldRead(db,JSON.stringify([table,columns,outletId,key]),async()=>{
   const result: T[] = []
   for (let offset = 0; ; offset += 500) {
-    let query = supabase.from(table).select(columns).order(key).range(offset, offset + 499)
+    let query = supabase!.from(table).select(columns).order(key).range(offset, offset + 499)
     if (outletId) query = query.eq('outlet_id', outletId)
     const { data, error } = await query
     if (error) throw error
     result.push(...((data ?? []) as T[]))
     if (!data || data.length < 500) return result
   }
+  })
 }
 
 function useRows<T>(loader: () => Promise<T>, key: string) {
@@ -69,19 +76,21 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     if (!outletId || (tab === 'Summary' || tab === 'Profile' || tab === 'Survey forms') || !supabase) return
     let active = true
     setVisitBusy(true)
-    void openSharedVisit(supabase, outletId, tab === 'Order' ? 'order' : 'survey').then(
-      id => { if (active) { setVisitId(id); setVisitError(''); setVisitBusy(false) } },
+    void openCaptureSession(db,ownerId,outletId,tab === 'Order' ? 'order' : 'survey').then(
+      session => { if (active) { setVisitId(session.id); setVisitError(''); setVisitBusy(false) } },
       error => { if (active) { setVisitError(message(error)); setVisitBusy(false) } },
     )
     return () => { active = false }
-  }, [outletId, tab])
+  }, [outletId, tab,ownerId])
   async function finishVisit() {
     if (!supabase || !visitId || visitBusy) return
     setVisitBusy(true)
     try {
-      const unfinished=await db.capture_sessions.where('[owner_id+outlet_id]').equals([ownerId,outletId!]).filter(row=>!row.finished_at).count()
-      if(unfinished)throw Error('Finish or sync the survey visit first. Its drafts are retained.')
-      await soloApi(supabase).finishVisit(operation({ visit_id: visitId }))
+      const draft=await db.local_meta.get(`order-draft:${ownerId}:${outletId}`)
+      const pending=await db.local_meta.get(`order-pending:${ownerId}:${outletId}`)
+      if(draft && !pending && Object.values(JSON.parse(draft.value).lines??{}).some(q=>Number(q)>0))throw Error('Submit or remove the saved order draft before finishing this visit.')
+      await requestCaptureFinish(db,ownerId,visitId)
+      if(navigator.onLine)void onSyncRequested()
       setVisitId(''); setTab('Summary'); setRevision(value => value + 1)
     } catch (failure) { setVisitError(message(failure)) }
     finally { setVisitBusy(false) }
@@ -101,12 +110,12 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
-      {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
+      {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary retail={retail} revision={revision} /></>}
+      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary key={version+':'+revision} retail={retail} revision={revision} /></>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
-      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
+      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
       {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
     </main>
@@ -138,16 +147,9 @@ function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:numb
   return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
-function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: string; onSaved: () => void }) {
+function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: () => void; ownerId:string;cacheVersion:number }) {
   const [revision, setRevision] = useState(0)
-  const catalog = useRows(async () => {
-    if (!supabase) throw new Error('Connect Supabase to load the catalog.')
-    const { data, error } = await supabase.from('solo_order_catalog_v2')
-      .select('id,brand,sku,product_line,flavour,selling_price,items_per_half_pack,packs_per_box')
-      .eq('active', true).eq('currency', 'USD').order('product_line').order('flavour')
-    if (error) throw error
-    return data as CatalogItem[]
-  }, String(revision))
+  const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`)
   const [brand, setBrand] = useState('')
   const [productLine,setProductLine]=useState('')
   const [reviewing, setReviewing] = useState(false)
@@ -166,6 +168,13 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
     catch { return null }
   })
   const attempt = useRef<Attempt>(pendingAttempt)
+  const draftKey=`order-draft:${ownerId}:${outletId}`,pendingMeta=`order-pending:${ownerId}:${outletId}`
+  const [draftReady,setDraftReady]=useState(false)
+  const draftWrites=useRef(Promise.resolve())
+  useEffect(()=>{let active=true;void Promise.all([db.local_meta.get(draftKey),db.local_meta.get(pendingMeta)]).then(([draft,pending])=>{if(!active)return;if(pending){const saved=JSON.parse(pending.value);attempt.current=saved;setPendingAttempt(saved)}if(draft){const saved=JSON.parse(draft.value);setLines(saved.lines??{});setTerms(saved.terms??'0');setInitialReceipt(saved.collected??'0.0');setNextVisit(saved.nextVisit??'')}setDraftReady(true)}).catch(e=>setError(message(e)));return()=>{active=false}},[draftKey,pendingMeta])
+  useEffect(()=>{if(!draftReady||pendingAttempt)return;draftWrites.current=draftWrites.current.catch(()=>{}).then(async()=>{await db.local_meta.put({key:draftKey,value:JSON.stringify({lines,terms,collected:initialReceipt,nextVisit})})});void draftWrites.current.catch(e=>setError('Draft save failed: '+message(e)))},[draftReady,pendingAttempt,draftKey,lines,terms,initialReceipt,nextVisit])
+  useEffect(()=>{if(!pendingAttempt)return;const id=pendingAttempt.id;const sub=liveQuery(()=>db.local_meta.get('command-result:'+id)).subscribe({next:row=>{if(!row)return;const ack=JSON.parse(row.value);if(ack.owner_id!==ownerId||!ack.result?.order_id)return;setSuccess('Invoice #'+ack.result.invoice_no+' created.');setSavedInvoice(ack.result.order_id);attempt.current=null;setPendingAttempt(null);localStorage.removeItem(pendingKey);sessionStorage.removeItem(pendingKey);void db.local_meta.delete(pendingMeta);setLines({});setTerms('0');setInitialReceipt('0.0');setNextVisit('');setReviewing(false);onSaved()},error:e=>setError(message(e))});return()=>sub.unsubscribe()},[pendingAttempt,ownerId,pendingKey,pendingMeta,onSaved])
+
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
   const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
@@ -196,7 +205,9 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
       { sku_id: string; quantity: number; price: number; uom: 'pack'; items_per_half_pack: number; packs_per_box: number }[], string, string, string, string,
     ]
     try {
-      localStorage.setItem(pendingKey, JSON.stringify(attempt.current))
+      await draftWrites.current
+      await db.local_meta.put({key:pendingMeta,value:JSON.stringify(attempt.current)})
+      try{localStorage.setItem(pendingKey, JSON.stringify(attempt.current))}catch{/* Durable IndexedDB copy remains. */}
       if (!savedVisit || savedItems.some(item => item.uom !== 'pack' || !item.items_per_half_pack)) throw Error('Legacy order retained for review. Do not reinterpret its saved quantities.');
       const result = await soloApi(supabase).issueInvoice({
         id: attempt.current.id,
@@ -219,9 +230,10 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
       attempt.current = null
       setPendingAttempt(null)
       localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
+      await db.local_meta.delete(pendingMeta)
       onSaved()
     } catch (failure) {
-      setError(message(failure))
+      setError(navigator.onLine?message(failure):'')
     } finally {
       setBusy(false)
     }
@@ -230,15 +242,15 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
   if (pendingAttempt) {
     let frozen: {items: {sku_id:string;quantity:number;price:number;uom?:string;items_per_half_pack?:number;packs_per_box?:number}[]; terms:string; collected:string}|undefined
     try { const [items,savedTerms,,collected]=JSON.parse(pendingAttempt.key);if(Array.isArray(items))frozen={items,terms:savedTerms,collected} } catch { /* Retain unreadable request for review. */ }
-    return <form className="form" onSubmit={e=>void submit(e)}><section className="card"><h2>Saved invoice awaiting confirmation</h2><p>These submitted details are frozen. Retry confirms the original request.</p>
+    return <form className="form" onSubmit={e=>void submit(e)}><section className="card"><h2>Order saved on this device</h2><p>Waiting for server confirmation. Upload resumes automatically when connected; an invoice is issued only after acceptance.</p>
       {frozen ? <><p>Terms: {Number(frozen.terms)===0 ? 'Cash — due today' : `Credit — ${frozen.terms} days`}</p><p>Collected: {money(frozen.collected)}</p><ul>{frozen.items.map((item,index)=><li key={index}>{catalog.data?.find(p=>p.id===item.sku_id)?.flavour || 'Saved item'} · {item.uom==='pack' && item.packs_per_box ? packBreakdown(item.quantity,item.packs_per_box) : 'Original quantity retained for review'}</li>)}</ul></> : <p>The saved request needs review; it has not been deleted.</p>}
-      <button className="primary" disabled={busy || !frozen}>{busy?'Retrying…':'Retry saved invoice'}</button>
+      <button className="primary" disabled={busy || !frozen}>{busy?'Retrying…':'Retry upload'}</button>
       {error && <p className="error" role="alert">{error}</p>}
     </section></form>
   }
 
   return <form className="form" onSubmit={(e) => void submit(e)}>
-    <fieldset disabled={busy} className="form retail-fields">
+    <fieldset disabled={busy || !draftReady} className="form retail-fields">
       {reviewing ? <>
         <button className="link" type="button" onClick={() => setReviewing(false)}>Back to products</button>
         <section className="card">
@@ -299,23 +311,21 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
 function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }) {
   const [brandId, setBrandId] = useState('')
   const [productId, setProductId] = useState('')
-  const competitors = useRows(async () => {
-    if (!supabase) throw Error('The database connection is unavailable.')
-    const [brands, products] = await Promise.all([
-      supabase.from('survey_brands').select('id,name').eq('is_own', false).eq('active', true).order('name'),
-      supabase.from('solo_competitor_catalog').select('id,brand_id,product_line,flavour').order('product_line'),
-    ])
-    if (brands.error) throw brands.error
-    if (products.error) throw products.error
-    return { brands: brands.data, products: products.data }
-  }, 'competitor-definitions')
+  const competitors = useRows(async()=>{
+    const brands=await fieldTable<{id:string;name:string;is_own:boolean;active:boolean}>(db,'survey_brands')
+    const products=await fieldTable<{id:string;brand_id:string;product_line:string;flavour:string}>(db,'solo_competitor_catalog')
+    if(brands&&products)return {brands:brands.filter(b=>!b.is_own&&b.active),products}
+    return cachedFieldRead(db,'competitor-definitions',async()=>{
+      if(!supabase)throw Error('Sync competitor definitions first.')
+      const [b,p]=await Promise.all([supabase.from('survey_brands').select('id,name').eq('is_own',false).eq('active',true),supabase.from('solo_competitor_catalog').select('id,brand_id,product_line,flavour')]);if(b.error||p.error)throw b.error||p.error;return {brands:b.data,products:p.data}
+    })
+  },'competitor-definitions')
 
   const [kind, setKind] = useState('competitor_price')
   const [photo, setPhoto] = useState<File>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const retry = useRef<{ id: string; photo?: File; uploaded: boolean; key: string } | null>(null)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -337,32 +347,15 @@ function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }
     setError('')
     setSuccess('')
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) throw authError ?? new Error('Sign in again.')
-      const attachment = promotion ? photo : undefined
-      if (attachment && (!['image/jpeg', 'image/png', 'image/webp'].includes(attachment.type) || attachment.size > 5242880)) {
-        throw new Error('Choose a JPEG, PNG or WebP photo up to 5 MB.')
-      }
-      const key = JSON.stringify(fields)
-      if (!retry.current || retry.current.key !== key || retry.current.photo !== attachment) {
-        if (retry.current?.uploaded) {
-          await supabase.storage.from('market-surveys').remove([user.id + '/' + retry.current.id])
-        }
-        retry.current = { id: crypto.randomUUID(), uploaded: false, key, photo: attachment }
-      }
-      const attempt = retry.current
-      const path = attachment ? user.id + '/' + attempt.id : null
-      if (attachment && path && !attempt.uploaded) {
-        const { error: uploadError } = await supabase.storage.from('market-surveys').upload(path, attachment)
-        if (uploadError && String((uploadError as { statusCode?: string }).statusCode) !== '409') throw uploadError
-        attempt.uploaded = true
-      }
-      await soloApi(supabase).submitObservation({ id: attempt.id, request: { ...fields, price: fields.price === null ? null : value('price'), photo_path: path } })
+      const owner=await offlineOwner(db)
+      const attachment=promotion?photo:undefined
+      const id=crypto.randomUUID()
+      const request={...fields,price:fields.price===null?null:value('price'),photo_path:attachment?owner+'/'+id:null}
+      await stagePhoto(db,owner,id,request,attachment)
+      try{await soloApi(supabase).submitObservation({id,request});setSuccess('Survey uploaded.')}catch{setSuccess('Survey and photo saved on this device. Upload resumes automatically when connected.')}
       form.reset()
       setKind('competitor_price')
       setPhoto(undefined)
-      retry.current = null
-      setSuccess('Survey saved.')
       setProductId('')
     } catch (failure) {
       setError(message(failure))

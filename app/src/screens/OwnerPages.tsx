@@ -1,3 +1,6 @@
+import {liveQuery} from 'dexie'
+import {db} from '../lib/db'
+import {fieldTable} from '../lib/offline'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MobileIcon } from './MobileIcon'
@@ -38,8 +41,10 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
     let active = true
     async function load() {
       if (!supabase) throw Error('The database connection is unavailable.')
-      const result: Invoice[] = []
-      for (let offset = 0; ; offset += 500) {
+      let cached=await fieldTable<Invoice>(db,'solo_invoice_balances')
+      if(invoiceId && !cached?.some(i=>i.id===invoiceId) && navigator.onLine)cached=undefined
+      const result: Invoice[] = cached??[]
+      if(!cached)for (let offset = 0; ; offset += 500) {
         const { data, error } = await supabase.from('solo_invoice_balances')
           .select('id,invoice_no,outlet_id,total,collected,outstanding,payment_status,created_at,recipient_snapshot')
           .order('created_at', { ascending: false }).order('id').range(offset, offset + 499)
@@ -53,15 +58,21 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
     return () => { active = false }
   }, [invoiceId])
 
+  useEffect(()=>{const sub=liveQuery(()=>fieldTable<Invoice>(db,'solo_invoice_balances')).subscribe({next:rows=>{if(rows){setInvoices(rows);if(invoiceId){const found=rows.find(row=>row.id===invoiceId);if(found){setSelected(found);setError('')}}}},error:e=>setError(fail(e))});return()=>sub.unsubscribe()},[invoiceId])
+
   useEffect(() => {
     if (!selected) return
     let active = true
     async function loadLines() {
       if(!supabase)throw Error('The database connection is unavailable.')
-      const {data,error}=await supabase.from('order_lines').select('id,quantity,unit_price,line_total,product_snapshot').eq('order_id',selected!.id).order('id')
-      if(error)throw error
+      const cache=await fieldTable<InvoiceLine & {order_id:string}>(db,'order_lines')
+      const saved=cache?.filter(l=>l.order_id===selected!.id)
+      if(!saved?.length && !navigator.onLine)throw Error('These invoice items have not been downloaded yet. Sync online first.')
+      const result=saved?.length ? {data:saved,error:null} : await supabase.from('order_lines').select('id,quantity,unit_price,line_total,product_snapshot').eq('order_id',selected!.id).order('id')
+      const {data,error}=result;if(error)throw error
       let clientName:string|undefined
-      if(!selected!.recipient_snapshot?.name){const client=await supabase.from('outlets').select('retail_name').eq('id',selected!.outlet_id).maybeSingle();if(!client.error)clientName=client.data?.retail_name}
+      if(!selected!.recipient_snapshot?.name){clientName=(await db.outlets.get(selected!.outlet_id))?.retail_name}
+      if(!selected!.recipient_snapshot?.name && !clientName && navigator.onLine){const client=await supabase.from('outlets').select('retail_name').eq('id',selected!.outlet_id).maybeSingle();if(!client.error)clientName=client.data?.retail_name}
       if(active)setLineState({id:selected!.id,rows:data as InvoiceLine[],clientName})
     }
     void loadLines().catch(error=>{if(active){setLineState({id:selected!.id,error:fail(error)});setError(fail(error))}})

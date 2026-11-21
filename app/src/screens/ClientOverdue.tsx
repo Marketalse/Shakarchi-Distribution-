@@ -1,3 +1,5 @@
+import {db} from '../lib/db'
+import {fieldTable} from '../lib/offline'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -12,8 +14,9 @@ export function ClientOverdue({outletId,revision=0,admin=false}:{outletId:string
   let active=true
   async function load(){
    if(!supabase)throw Error('Connect to load invoice balances.')
-   const rows:ClientBalance[]=[]
-   for(let offset=0;;offset+=500){const {data,error}=await supabase.from('solo_invoice_balances').select('id,invoice_no,outlet_id,due_date,outstanding').eq('outlet_id',outletId).order('id').range(offset,offset+499);if(error)throw error;rows.push(...data as ClientBalance[]);if(data.length<500)break}
+   const cached=await fieldTable<ClientBalance>(db,'solo_invoice_balances')
+   const rows:ClientBalance[]=cached?.filter(r=>r.outlet_id===outletId)??[]
+   if(!cached)for(let offset=0;;offset+=500){const {data,error}=await supabase.from('solo_invoice_balances').select('id,invoice_no,outlet_id,due_date,outstanding').eq('outlet_id',outletId).order('id').range(offset,offset+499);if(error)throw error;rows.push(...data as ClientBalance[]);if(data.length<500)break}
    const today=baghdadDay(new Date());clientDebt(rows,outletId,today);if(active)setState({key,rows,today})
   }
   void load().catch(error=>{if(active)setState({key,error:String(error.message || error)})})

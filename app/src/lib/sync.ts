@@ -40,8 +40,9 @@ export async function enqueue(
  * confirmed it. The run stops at the first failure so nothing is uploaded out
  * of order; whatever is left is retried on the next run.
  */
-export async function flush(db: LocalDb, remote: Remote): Promise<FlushResult> {
+export async function flush(db: LocalDb, remote: Remote, continueIndependentClients = false): Promise<FlushResult> {
   let uploaded = 0
+  const problems:string[]=[]
   for (const table of UPLOAD_ORDER) {
     const items: OutboxItem[] = await db.outbox.where('table').equals(table).sortBy('seq')
     for (const item of items) {
@@ -53,13 +54,14 @@ export async function flush(db: LocalDb, remote: Remote): Promise<FlushResult> {
           attempts: item.attempts + 1,
           last_error: message,
         })
+        if(continueIndependentClients && table==='outlets'){problems.push(message);continue}
         return { uploaded, remaining: await db.outbox.count(), stoppedBy: message }
       }
       await db.outbox.delete(item.seq!)
       uploaded++
     }
   }
-  return { uploaded, remaining: await db.outbox.count() }
+  return { uploaded, remaining: await db.outbox.count(), stoppedBy:problems.length?problems.join(' · '):undefined }
 }
 
 export function pendingCount(db: LocalDb): Promise<number> {
