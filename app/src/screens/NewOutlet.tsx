@@ -16,7 +16,6 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
   })
   const [optionalContact, setOptionalContact] = useState(false)
   const [pos, setPos] = useState<Position | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
   const [gpsBusy, setGpsBusy] = useState(false)
   const [error, setError] = useState('')
   const [dupes, setDupes] = useState<Nearby[] | null>(null)
@@ -24,13 +23,13 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
 
   async function locate() {
     setGpsBusy(true)
-    setError(''); setConfirmed(false); setPos(null)
+    setError(''); setPos(null)
     try { setPos(await getPosition()) } catch (e) { setError((e as Error).message) }
     setGpsBusy(false)
   }
 
   async function save(ignoreDuplicates: boolean) {
-    if (!pos || !confirmed) return setError('Capture and confirm the store location before saving.')
+    if (!pos) return setError('Capture the store location before saving.')
     if (!ignoreDuplicates) {
       const near = nearbyOutlets(await db.outlets.toArray(), pos.lat, pos.lng, DUPLICATE_RADIUS_M)
       if (near.length > 0) return setDupes(near)
@@ -92,13 +91,12 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <div>
           <span className="label">{t.form.gps}</span>
           <button type="button" className="wide" onClick={() => void locate()} disabled={gpsBusy}>
-            {gpsBusy ? 'Capturing…' : pos ? 'Recapture location' : 'Capture location'}
+            {gpsBusy ? 'Capturing…' : pos ? 'Recapture location' : 'Capture at store'}
           </button>
         </div>
         {pos && <section className="card">
           <p role="status">Location captured</p>
           {pos.accuracy_m > 50 && <p className="warn-text">Location is approximate. Move outside and try again.</p>}
-          <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I'm at the store</label>
         </section>}
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row">

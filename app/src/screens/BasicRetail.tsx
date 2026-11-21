@@ -6,7 +6,7 @@ import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCen
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
-import { ClientLocation } from './ClientLocation'
+import { StoreNavigation } from './StoreNavigation'
 import { currentReport, baghdadDay, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
 
@@ -91,7 +91,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     <main>
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
-      <ClientLocation retail={retail} />
+      <StoreNavigation retail={retail} />
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
@@ -130,7 +130,7 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
 
 function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:number}) {
   const {data,error}=useRows(()=>rows<{id:string;created_at:string;total:string}>('solo_invoice_balances','id,outlet_id,created_at,total',outletId),'client-invoices:'+outletId+':'+revision)
-  return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice '+row.id}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
+  return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
 function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: string; onSaved: () => void }) {
