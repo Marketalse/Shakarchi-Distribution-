@@ -75,6 +75,8 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     if (!supabase || !visitId || visitBusy) return
     setVisitBusy(true)
     try {
+      const unfinished=await db.capture_sessions.where('[owner_id+outlet_id]').equals([ownerId,outletId!]).filter(row=>!row.finished_at).count()
+      if(unfinished)throw Error('Finish or sync the survey visit first. Its drafts are retained.')
       await soloApi(supabase).finishVisit(operation({ visit_id: visitId }))
       setVisitId(''); setTab('Summary'); setRevision(value => value + 1)
     } catch (failure) { setVisitError(message(failure)) }
