@@ -23,6 +23,6 @@ describe('customer invoice presentation and debt',()=>{
 })
 
 it('renders declared Pack quantities and matching selling prices without rescaling legacy history',async()=>{
- const {invoiceQuantity,invoiceSellingPrice}=await import('./invoice-display');const snapshot={contract_version:2,base_uom:'half_pack'};
- expect(invoiceQuantity(snapshot,3)).toBe('1.5 Packs');expect(invoiceSellingPrice(snapshot,'9.95')).toBe('19.90');expect(invoiceSellingPrice(null,'9.95')).toBe('9.95');expect(invoiceQuantity(null,3)).toBe('3 (legacy unit)');
+ const {invoiceQuantity,invoiceSellingPrice}=await import('./invoice-display');const snapshot={contract_version:2,base_uom:'half_pack',packs_per_box:10};
+ expect(invoiceQuantity(snapshot,3)).toBe('1 Pack · ½ Pack');expect(invoiceSellingPrice(snapshot,'9.95')).toBe('19.90');expect(invoiceSellingPrice(null,'9.95')).toBe('9.95');expect(invoiceQuantity(null,3)).toBe('3 (legacy unit)');
 })

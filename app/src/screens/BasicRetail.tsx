@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
-import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, usdCents, usdAmount } from '../lib/money'
-import { packTotal } from '../lib/pack'
+import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, usdCents } from '../lib/money'
+import { packTotal, packBreakdown } from '../lib/pack'
+import { CREDIT_DAYS, checkoutBalance, validTerms } from '../lib/checkout'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
@@ -150,12 +151,11 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
   const [brand, setBrand] = useState('')
   const [productLine,setProductLine]=useState('')
   const [reviewing, setReviewing] = useState(false)
-  const [payment, setPayment] = useState('Unpaid')
   const [savedInvoice, setSavedInvoice] = useState('')
   const [lines, setLines] = useState<Record<string, number>>({})
   const [terms, setTerms] = useState('0')
   const [nextVisit, setNextVisit] = useState('')
-  const [initialReceipt, setInitialReceipt] = useState('0')
+  const [initialReceipt, setInitialReceipt] = useState('0.0')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -169,9 +169,8 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
   const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
-  let partialBalance: string | undefined
-  try { partialBalance = usdAmount(usdCents(total) - usdCents(initialReceipt || '0')) }
-  catch { partialBalance = undefined }
+  let paymentSummary: ReturnType<typeof checkoutBalance> | undefined
+  try { paymentSummary = checkoutBalance(total,initialReceipt) } catch { /* Display validation on submit. */ }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -180,15 +179,16 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
     setError('')
     setSuccess('')
     const items = selected.map(i => ({ sku_id: i.id, quantity: lines[i.id], price: i.selling_price, uom: 'pack' as const, items_per_half_pack: i.items_per_half_pack, packs_per_box: i.packs_per_box }))
-    const receipt = payment === 'Paid' ? String(total) : payment === 'Unpaid' ? '0' : initialReceipt
+    const receipt = initialReceipt
     let initialAmount: bigint
     try { initialAmount = usdCents(receipt) }
     catch { setError('Enter a USD amount with at most two decimal places.'); setBusy(false); return }
-    if (!attempt.current && (initialAmount < 0n || initialAmount > usdCents(total) || (payment === 'Partial' && (initialAmount === 0n || initialAmount >= usdCents(total))))) {
+    if (!attempt.current && (initialAmount < 0n || initialAmount > usdCents(total))) {
       setError('Enter an initial receipt from zero to the invoice total, with at most two decimal places.')
       setBusy(false)
       return
     }
+    if (!attempt.current && !validTerms(Number(terms))) { setError('Choose Cash or credit terms from 4 to 10 days.'); setBusy(false); return }
     const key = JSON.stringify([items, terms, nextVisit, receipt, visitId])
     if (!attempt.current) attempt.current = { key, id: crypto.randomUUID() }
     setPendingAttempt(attempt.current)
@@ -214,7 +214,8 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
       setReviewing(false)
       setLines({})
       setNextVisit('')
-      setInitialReceipt('0')
+      setInitialReceipt('0.0')
+      setTerms('0')
       attempt.current = null
       setPendingAttempt(null)
       localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
@@ -226,6 +227,16 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
     }
   }
 
+  if (pendingAttempt) {
+    let frozen: {items: {sku_id:string;quantity:number;price:number;uom?:string;items_per_half_pack?:number;packs_per_box?:number}[]; terms:string; collected:string}|undefined
+    try { const [items,savedTerms,,collected]=JSON.parse(pendingAttempt.key);if(Array.isArray(items))frozen={items,terms:savedTerms,collected} } catch { /* Retain unreadable request for review. */ }
+    return <form className="form" onSubmit={e=>void submit(e)}><section className="card"><h2>Saved invoice awaiting confirmation</h2><p>These submitted details are frozen. Retry confirms the original request.</p>
+      {frozen ? <><p>Terms: {Number(frozen.terms)===0 ? 'Cash — due today' : `Credit — ${frozen.terms} days`}</p><p>Collected: {money(frozen.collected)}</p><ul>{frozen.items.map((item,index)=><li key={index}>{catalog.data?.find(p=>p.id===item.sku_id)?.flavour || 'Saved item'} · {item.uom==='pack' && item.packs_per_box ? packBreakdown(item.quantity,item.packs_per_box) : 'Original quantity retained for review'}</li>)}</ul></> : <p>The saved request needs review; it has not been deleted.</p>}
+      <button className="primary" disabled={busy || !frozen}>{busy?'Retrying…':'Retry saved invoice'}</button>
+      {error && <p className="error" role="alert">{error}</p>}
+    </section></form>
+  }
+
   return <form className="form" onSubmit={(e) => void submit(e)}>
     <fieldset disabled={busy} className="form retail-fields">
       {reviewing ? <>
@@ -233,23 +244,19 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
         <section className="card">
           <h2>Review order</h2>
           {selected.map(item => <div className="summary-line" key={item.id}>
-            <span>{skuOf(item)} × {lines[item.id]} Packs</span><strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
+            <span>{skuOf(item)} × {packBreakdown(lines[item.id],item.packs_per_box)}</span><strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
         </section>
-        <nav className="retail-tabs" aria-label="Initial payment">
-          {['Paid', 'Partial', 'Unpaid'].map(value => <button type="button" key={value}
-            aria-pressed={payment === value} onClick={() => setPayment(value)}>{value}</button>)}
-        </nav>
-        {payment === 'Partial' && <label>Collected amount · USD<input type="number" min="0.01" max={total}
-          step="0.01" required value={initialReceipt} onChange={e => setInitialReceipt(e.target.value)} /></label>}
-        <div className="card summary-line"><span>Remaining balance</span>
-          <strong>{payment === 'Paid' ? money('0') : payment === 'Unpaid' ? money(total) : partialBalance === undefined ? '—' : money(partialBalance)}</strong></div>
-        <label>Invoice due date<select value={terms} onChange={e => setTerms(e.target.value)}>
-          <option value="0">Due today</option>
-          {[7, 14, 30, 60].map(days => <option key={days} value={days}>In {days} days</option>)}
+        <label>Payment terms<select value={terms} onChange={e => setTerms(e.target.value)}>
+          <option value="0">Cash — due today</option>
+          {CREDIT_DAYS.map(days => <option key={days} value={days}>Credit — {days} days</option>)}
         </select></label>
-        <p className="muted">{payment === 'Paid' ? 'Paid invoices need no collection reminder.' : 'A collection reminder is set for four days.'}</p>
+        <label>Amount collected now · $<input type="number" min="0" max={total}
+          step="0.01" required value={initialReceipt} onChange={e => setInitialReceipt(e.target.value)} /></label>
+        <div className="card summary-line"><span>Remaining balance · {paymentSummary?.status ?? 'Check amount'}</span>
+          <strong>{paymentSummary ? money(paymentSummary.remaining) : '—'}</strong></div>
+        <p className="muted">Cash means due today. Only the amount collected marks the invoice paid. {paymentSummary?.status === 'Paid' ? 'Paid invoices need no collection reminder.' : 'A collection reminder is set for four days.'}</p>
         <label>Next visit<input type="date" value={nextVisit} onChange={e => setNextVisit(e.target.value)} /></label>
         <button className="primary" disabled={selected.length === 0 && !pendingAttempt}>
           {busy ? 'Creating invoice…' : 'Submit and create invoice'}
@@ -268,17 +275,15 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
           <div className="stepper-area"><p className="muted">½ Pack = {item.items_per_half_pack} items · Box = {item.packs_per_box} Packs</p><div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}
               onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 0.5) }))}>−</button>
-            <output aria-label={skuOf(item) + ' quantity'}>{lines[item.id] || 0} Packs</output>
+            <output aria-label={skuOf(item) + ' quantity'}>{packBreakdown(lines[item.id] || 0,item.packs_per_box)}</output>
             <button type="button" className="primary" aria-label={'Increase ' + skuOf(item)} disabled={lines[item.id] >= 100000}
               onClick={() => setLines(current => ({ ...current, [item.id]: (current[item.id] || 0) + 0.5 }))}>+</button>
           </div>
-          <button type="button" onClick={() => setLines(current => ({...current, [item.id]: Math.min(100000, (current[item.id] || 0) + item.packs_per_box)}))}>+ Box</button></div>
+          </div>
         </div>)}
         {catalog.data && catalog.data.length > 0 && <div className="cart-total"><div><small className="muted">{selected.length} SKUs</small><br /><strong>{money(total)}</strong></div>
           <button type="button" className="primary" disabled={!selected.length} onClick={() => setReviewing(true)}>Review</button></div>}
       </>}
-      {pendingAttempt && <div className="card"><p>A saved invoice is waiting for confirmation.</p>
-        <button className="primary">{busy ? 'Retrying…' : 'Retry saved invoice'}</button></div>}
     </fieldset>
     {!catalog.data && !catalog.error && <p role="status">Loading products…</p>}
     {catalog.error && <p className="error" role="alert">{catalog.error}</p>}
@@ -365,6 +370,7 @@ function SurveyForm({ outletId, visitId }: { outletId: string; visitId: string }
       setBusy(false)
     }
   }
+
 
   return <form className="form" onSubmit={(e) => void submit(e)}>
     <fieldset disabled={busy} className="form retail-fields">
