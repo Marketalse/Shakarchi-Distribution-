@@ -114,3 +114,5 @@ button.link { border: 0; padding: 0; background: none; text-decoration: underlin
 .navigation-picker > summary { cursor: pointer; width: fit-content; }
 .navigation-options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .65rem; }
 .navigation-options a { min-height: 44px; }
+
+.icon-button{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px}.icon-button svg{flex:none}

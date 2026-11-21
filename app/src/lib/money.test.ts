@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatUsd, localToUsd, multiplyUsd, sumUsd, usdCents } from './money'
+import { formatUsd, formatUsdSummary, formatIqdRate, localToUsd, multiplyUsd, sumUsd, usdCents } from './money'
 
 describe('USD arithmetic and parallel settlement previews', () => {
   it('keeps cents exact across quantities and aggregation', () => {
@@ -17,4 +17,12 @@ describe('USD arithmetic and parallel settlement previews', () => {
     expect(() => localToUsd('100', '0')).toThrow()
     expect(() => usdCents('NaN')).toThrow()
   })
+})
+
+it('rounds summaries only and preserves exact ledger cents and rate digits',()=>{
+ expect(formatUsdSummary('1234.05')).toBe('$1,234.1')
+ expect(formatUsdSummary('-1.05')).toBe('-$1.1')
+ expect(formatUsd('0.04')).toBe('$0.04')
+ expect(usdCents('1234.05')).toBe(123405n)
+ expect(formatIqdRate('1700.25000000')).toBe('$1 = 1,700.25 IQD')
 })

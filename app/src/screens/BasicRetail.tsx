@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
-import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
+import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
 import { ClientLocation } from './ClientLocation'
-import { currentReport, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
+import { currentReport, baghdadDay, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -432,14 +432,14 @@ export function Dashboard({ version = 0 }: { version?: number }) {
   return <main>
     <h1>Dashboard</h1>
     <p className="muted">All-time USD totals · Current balances. Updated {new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(data.loadedAt))} · Baghdad time</p>
-    <button onClick={() => { setClock(Date.now()); setRefresh(v => v + 1) }}>Refresh report</button>
+    <button className="icon-button" aria-label="Refresh report" title="Refresh report" onClick={() => { setClock(Date.now()); setRefresh(v => v + 1) }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7a9 9 0 1 0 1 9M20 2v6h-6"/></svg></button>
     <dl className="metrics">
-      <div><dt>Total sales</dt><dd>{money(report.sales)}</dd></div>
-      <div><dt>Net cash collected</dt><dd>{money(report.netCash)}</dd></div>
-      <div><dt>Still to collect</dt><dd>{money(report.outstanding)}</dd></div>
+      <div><dt>↗ Sales</dt><dd title={money(report.sales)}>{formatUsdSummary(report.sales)}</dd></div>
+      <div><dt>↙ Cash collected</dt><dd title={money(report.netCash)}>{formatUsdSummary(report.netCash)}</dd></div>
+      <div><dt>◷ To collect</dt><dd>{money(report.outstanding)}</dd></div>
       <div><dt>Overpayments</dt><dd>{money(report.overpayment)}</dd></div>
       <div><dt>Overdue invoices</dt><dd>{money(report.overdue)}</dd></div>
-      <div><dt>Total retails</dt><dd>{data.retails}</dd></div>
+      <div><dt>⌂ Retails</dt><dd>{data.retails}</dd></div>
       {['Paid', 'Partially paid', 'Unpaid'].map(status =>
         <div key={status}><dt>{status} invoices</dt><dd>{data.invoices.filter(i => i.payment_status === status).length}</dd></div>)}
     </dl>
@@ -447,9 +447,9 @@ export function Dashboard({ version = 0 }: { version?: number }) {
     {report.unallocatedCash !== '0.00' && <p className="warn-text">Cash not matched to listed invoices: {money(report.unallocatedCash)}. Included in net cash, kept separate from invoice balances.</p>}
     {report.unknownAging !== '0.00' && <p className="warn-text">Balance without a due date: {money(report.unknownAging)}. Not counted as overdue.</p>}
     {missingCosts > 0 && <p className="warn-text">{missingCosts} invoices have incomplete cost snapshots. Complete profit reporting is unavailable.</p>}
-    <section className="card" aria-label="Due payment reminders">
-      <h2>Payments to follow up · {report.due.length}</h2>
-      <p>Unpaid and partly paid invoices get a reminder after four days. Collect the balance or choose another reminder time.</p>
+    <section className="card" aria-label="Due payment reminders" id="payment-follow-up">
+      <h2 className="row"><span>◷ Payment follow-up</span><span className={report.due.length?'tag warn':'tag ok'} aria-label={report.due.length+' reminders due'}>{report.due.length || 'All clear'}</span></h2>
+      <p className="muted">{data.invoices.filter(i=>usdCents(i.outstanding)>0n && i.due_date && i.due_date<baghdadDay(new Date(clock))).length} overdue invoices</p>
       {!report.due.length && <p>No payment reminders due.</p>}
       <ul>{report.due.map(({invoice,scheduled_at}) => <li key={invoice.id}>
         <strong>{invoice.recipient_snapshot?.name || 'Invoice #' + invoice.invoice_no}</strong> · #{invoice.invoice_no} · {money(invoice.outstanding)} remaining
@@ -458,8 +458,9 @@ export function Dashboard({ version = 0 }: { version?: number }) {
       </li>)}</ul>
       <p className="muted">Reminders appear in the app. No push or email notifications.</p>
     </section>
-    <section className="card"><h2>Parallel exchange rate</h2>
-      <p>{rate ? rate.exchange_rate_used + ' IQD per $1 · ' + rate.rate_source + (new Date(rate.valid_until).getTime() <= clock ? ' · Expired' : ' · Active') : 'No manual rate entered. USD payments remain available.'}</p>
+    <section className="card"><h2>⇄ Exchange rate</h2>
+      <p><strong>{rate?formatIqdRate(rate.exchange_rate_used):'Rate unavailable'}</strong></p>
+      <p className="muted">{rate?(new Date(rate.valid_until).getTime()<=clock?'Expired — update before local payment':'Manually updated'):'USD payments available'}</p>
       <Link to="/admin">Manage rate in owner tools</Link>
     </section>
     <section className="card">
