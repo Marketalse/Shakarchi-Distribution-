@@ -46,6 +46,7 @@ export function soloApi(client: SupabaseClient) {
     }) as T
   }
   return {
+    setServiceArea: (command: Operation<{id:string;active:boolean;expected_version:number}>) => call<Record<string,unknown>>('set_solo_service_area', command),
     updateClient: (command: Operation<Record<string, unknown>>) => call<{ outlet_id: string }>('update_solo_client', command),
     submitObservation: (command: Operation<Record<string, unknown>>) => call<{ observation_id: string }>('submit_solo_observation', command),
     correctLocation: (command: Operation<Record<string, unknown>>) => call<{ outlet_id: string }>('correct_solo_client_location', command),

@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../lib/db'
 import { createOutlet } from '../lib/outlet'
 import { getPosition, nearbyOutlets, type Nearby, type Position } from '../lib/geo'
-import { DUPLICATE_RADIUS_M, OUTLET_TYPES, PROVINCES } from '../lib/config'
+import { DUPLICATE_RADIUS_M, OUTLET_TYPES } from '../lib/config'
+import { useServiceAreas } from '../lib/useServiceAreas'
+import { areaChoices } from '../lib/service-areas'
 import type { Relationship } from '../lib/types'
 import { en as t } from '../i18n/en'
 
 export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => void }) {
   const navigate = useNavigate()
+  const {areas}=useServiceAreas()
   const [f, setF] = useState({
     retail_name: '', owner_name: '', owner_phone: '', shop_phone: '', staff_name: '', staff_phone: '',
     province: '', area: '', address: '', outlet_type: '',
@@ -76,8 +79,8 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <label>{t.form.type}
           <select required value={f.outlet_type} onChange={set('outlet_type')}><option value="">Choose outlet type</option>{OUTLET_TYPES.map((x) => <option key={x}>{x}</option>)}</select>
         </label>
-        <label>{t.form.province}
-          <select required value={f.province} onChange={set('province')}><option value="">Choose province</option>{PROVINCES.map((x) => <option key={x}>{x}</option>)}</select>
+        <label>Service area
+          <select required value={f.province} onChange={set('province')}><option value="">Choose area</option>{areaChoices(areas).map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</select>
         </label>
         <label>{t.form.area}<input required value={f.area} onChange={set('area')} /></label>
         <label>{t.form.owner}<input value={f.owner_name} onChange={set('owner_name')} /></label>
