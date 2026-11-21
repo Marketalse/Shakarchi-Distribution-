@@ -11,7 +11,7 @@ import { useServiceAreas } from '../lib/useServiceAreas'
 import { areaChoices } from '../lib/service-areas'
 import { liveQuery } from 'dexie'
 
-export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () => void }) {
+export function ClientEdit({ retail, onSaved, hideHeading=false }: { retail: Outlet; onSaved: () => void; hideHeading?:boolean }) {
   const {areas}=useServiceAreas()
   const [optionalContact, setOptionalContact] = useState(Boolean(retail.staff_name || retail.staff_phone))
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
