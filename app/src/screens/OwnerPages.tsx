@@ -156,7 +156,7 @@ export function OwnerProfile({ userId }: { userId: string }) {
       <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
     </form>}
     <div className="profile-links">
-      <Link className="card card-link" to="/admin">Products, brands and owner tools <span aria-hidden="true">→</span></Link>
+      <Link className="card card-link" to="/admin">Admin hub <span aria-hidden="true">→</span></Link>
       <Link className="card card-link" to="/orders">Invoices and collections <span aria-hidden="true">→</span></Link>
       <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>
     </div>

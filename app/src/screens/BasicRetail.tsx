@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
-import { ClientEdit, DynamicSurvey } from './CaptureForms'
+import { DynamicSurvey } from './CaptureForms'
 import { ClientLocation } from './ClientLocation'
 import { currentReport, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
@@ -91,12 +91,12 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     <main>
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
-      <ClientLocation retail={retail} allowCorrection onUpdated={() => setRevision(value => value + 1)} />
+      <ClientLocation retail={retail} />
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
-      {tab === 'Profile' && <ClientEdit retail={retail} onSaved={() => setRevision(value => value + 1)} />}
+      {tab === 'Profile' && <section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { openSharedVisit } from '../lib/shared-visit'
 import { supabase } from '../lib/supabase'
 import { formatUsd, localToUsd } from '../lib/money'
@@ -240,7 +240,8 @@ export function OwnerAdmin() {
   const submitButton = <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
 
   return <main>
-    <h1>Owner administration</h1>
+    <h1>Admin hub</h1>
+    <Link className="card card-link" to="/admin/clients">Clients <span aria-hidden="true">→</span></Link>
     <label className="owner-section">Section
       <select value={tab} onChange={event => { setTab(event.target.value); setError(''); setNotice('') }}>
         {['Collections', 'Exchange rate', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label => <option key={label}>{label}</option>)}

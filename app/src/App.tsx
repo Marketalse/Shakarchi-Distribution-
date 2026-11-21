@@ -9,6 +9,7 @@ import { NewOutlet } from './screens/NewOutlet'
 import { Dashboard, RetailDetail } from './screens/BasicRetail'
 import { Orders, OwnerProfile } from './screens/OwnerPages'
 import { Visit } from './screens/Visit'
+import { AdminClients } from './screens/AdminClients'
 import { OwnerAdmin } from './screens/OwnerAdmin'
 import { NewPassword } from './screens/NewPassword'
 
@@ -21,7 +22,7 @@ export default function App() {
   const title = pathname === '/dashboard' ? 'Overview'
     : pathname === '/orders' ? 'Orders'
     : pathname === '/me' ? 'Me'
-    : pathname === '/admin' ? 'Owner tools'
+    : pathname.startsWith('/admin') ? 'Admin hub'
     : pathname === '/outlets/new' ? 'New retail'
     : pathname.startsWith('/retails/') ? 'Retail'
     : pathname.startsWith('/visit/') ? 'Visit'
@@ -58,6 +59,8 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard version={sync.version} />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
+          <Route path="/admin/clients" element={<AdminClients />} />
+          <Route path="/admin/clients/:outletId" element={<AdminClients />} />
           <Route path="/admin" element={<OwnerAdmin />} />
           <Route path="/retails/:outletId" element={<RetailDetail version={sync.version + sync.pending} ownerId={repId} onCaptureChanged={() => void sync.refresh()} onSyncRequested={sync.syncNow} />} />
           <Route path="/visit/:outletId" element={<Visit repId={repId} onSaved={() => void sync.refresh()} />} />
