@@ -5,7 +5,7 @@ import { cacheServiceAreas,type ServiceArea } from '../lib/service-areas'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
 import { operation,soloApi } from '../lib/solo-api'
-export function ServiceAreas(){
+export function ServiceAreas({embedded=false}:{embedded?:boolean}={}){
  const {areas,configured,error}=useServiceAreas()
  const [busy,setBusy]=useState(false),[failure,setFailure]=useState(''),[notice,setNotice]=useState('')
  async function toggle(area:ServiceArea){
@@ -19,7 +19,7 @@ export function ServiceAreas(){
    await cacheServiceAreas(db,owner,supabase);setNotice('Area updated.')
   }catch(e){setFailure(String((e as Error).message))}finally{setBusy(false)}
  }
- return <main><Link to="/admin">Admin hub</Link><h1>Service areas</h1><p className="muted">Controls new client choices. Saved client locations stay unchanged.</p>
+ return <main>{!embedded&&<><Link to="/admin">Admin hub</Link><h1>Service areas</h1></>}<p className="muted">Controls new client choices. Saved client locations stay unchanged.</p>
   {!configured && <p role="status">Database setup pending. The initial three choices remain available for capture.</p>}
   {error && <p className="muted">{error}</p>}
   <ul className="list">{areas.map(area=><li key={area.id}><span>{area.label}</span><button role="switch" aria-checked={area.active} aria-label={area.label+' active'} disabled={busy || !configured} onClick={()=>void toggle(area)}>{area.active?'Active':'Inactive'}</button></li>)}</ul>

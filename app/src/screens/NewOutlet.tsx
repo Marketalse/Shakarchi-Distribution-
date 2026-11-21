@@ -9,7 +9,7 @@ import { areaChoices } from '../lib/service-areas'
 import type { Relationship } from '../lib/types'
 import { en as t } from '../i18n/en'
 
-export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => void }) {
+export function NewOutlet({ repId, onSaved, adminMode=false }: { repId: string; onSaved: () => void; adminMode?:boolean }) {
   const navigate = useNavigate()
   const {areas}=useServiceAreas()
   const [f, setF] = useState({
@@ -47,7 +47,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         location_accuracy: pos.accuracy_m, location_captured_at: pos.captured_at, location_source: 'device_gps',
       })
       onSaved()
-      navigate(`/retails/${outlet.id}`, { replace: true })
+      navigate(`${adminMode?'/admin/clients':'/retails'}/${outlet.id}`, { replace: true })
     } catch (e) { setError((e as Error).message) }
   }
 
@@ -73,7 +73,7 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
 
   return (
     <main>
-      <h1>{t.newOutlet}</h1>
+      {!adminMode&&<h1>{t.newOutlet}</h1>}
       <form onSubmit={submit} className="form">
         <label>{t.form.name}<input required value={f.retail_name} onChange={set('retail_name')} /></label>
         <label>{t.form.type}

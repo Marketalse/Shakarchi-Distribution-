@@ -1,3 +1,7 @@
+# Current status — repository recheck
+
+21 November2026: PR50 merged to main f37acb6. Both deployments succeeded. Read-only live checks confirm service_areas and its activation RPC exist, RLS/owner policy are active, anonymous access denied and direct authenticated writes denied. The earlier draft-only status below is historical; the admin redesign retains these settings. No migration was rerun during this verification.
+
 # Service-area settings #48 — prepared, not activated
 
 21 November2026. Separate from released UI PR #49. Additive migration013 is proposed, not applied to production. Existing linked tasks #10/#13/#38/#41 are excluded from execution.

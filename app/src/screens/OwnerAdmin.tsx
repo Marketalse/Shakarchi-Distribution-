@@ -25,9 +25,9 @@ async function readTable(table: string): Promise<Row[]> {
   }
 }
 
-export function OwnerAdmin() {
+export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnly=false,builderOnly=false}:{section?:string;embedded?:boolean;onChanged?:()=>void;productId?:string;editorOnly?:boolean;builderOnly?:boolean}={}) {
   const [params] = useSearchParams()
-  const [tab, setTab] = useState('Collections')
+  const [tab, setTab] = useState(section??'Collections')
   const [rows, setRows] = useState<Record<string, Row[]>>({})
   const [revision, setRevision] = useState(0)
   const [error, setError] = useState('')
@@ -42,8 +42,10 @@ export function OwnerAdmin() {
   useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 30000); return () => clearInterval(timer) }, [])
   const [orderId, setOrderId] = useState(params.get('invoice') || '')
   const [preview, setPreview] = useState<{ kind: 'brands' | 'products' | 'observations'; rows: Record<string, unknown>[] }>()
-  const [editProduct, setEditProduct] = useState<Row>()
-  const [productBrandId, setProductBrandId] = useState('')
+  const [editingProduct, setEditProduct] = useState<Row>()
+  const [productBrandChoice, setProductBrandId] = useState<string>()
+  const editProduct=productId?rows.products?.find(row=>row.id===productId):editingProduct
+  const productBrandId=productBrandChoice??String(editProduct?.brand_id||'')
   const [versionId, setVersionId] = useState('')
   const [questions, setQuestions] = useState([{ id: crypto.randomUUID(), label: '', type: 'text', required: true, options: '' }])
   const changeQuestion = (id: string, changes: Partial<(typeof questions)[number]>) => setQuestions(rows => rows.map(q => q.id === id ? { ...q, ...changes } : q))
@@ -99,8 +101,9 @@ export function OwnerAdmin() {
       pending.current = null
       setPendingView(null)
       localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
+      if(label==='Import')setPreview(undefined)
       setNotice(label + ' saved')
-      setRevision(value => value + 1)
+      setRevision(value => value + 1);onChanged?.()
     } catch (failure) {
       const code = (failure as Error & { code?: string }).code
       if (code && /^(P000[12]|22|23|42501)/.test(code)) {
@@ -216,7 +219,7 @@ export function OwnerAdmin() {
     try {
       const { error } = await supabase.from('survey_brands').update({ active: !brand.active }).eq('id', brand.id)
       if (error) throw Error(error.message)
-      setRevision(value => value + 1)
+      setRevision(value => value + 1);onChanged?.()
     } catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
@@ -237,17 +240,17 @@ export function OwnerAdmin() {
     })
   }
   const formProps = { onSubmit: (event: FormEvent<HTMLFormElement>) => void submit(event), className: 'form' }
-  const submitButton = <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+  const submitButton = <button className="primary" disabled={busy}>{busy ? 'Saving…' : builderOnly ? 'Publish version' : 'Save'}</button>
 
-  return <main>
-    <h1>Admin hub</h1>
+  return <main className={embedded?'admin-module':undefined}>
+    {!embedded && <><h1>Admin hub</h1>
     <Link className="card card-link" to="/admin/areas">Service areas <span aria-hidden="true">→</span></Link>
     <Link className="card card-link" to="/admin/clients">Clients <span aria-hidden="true">→</span></Link>
     <label className="owner-section">Section
       <select value={tab} onChange={event => { setTab(event.target.value); setError(''); setNotice('') }}>
         {['Collections', 'Exchange rate', 'Products', 'Brands', 'Surveys', 'Imports', 'Observations'].map(label => <option key={label}>{label}</option>)}
       </select>
-    </label>
+    </label></>}
     {loadError && <><p className="error" role="alert">Could not load records. Try again.</p>
       <button onClick={() => setRevision(value => value + 1)}>Reload</button></>}
     {error && <p className="error" role="alert">{error}</p>}
@@ -300,13 +303,13 @@ export function OwnerAdmin() {
           <label>Reason for refund or correction<input name="reason" /></label>
           {submitButton}
         </form>
-        <h2>Collection reminder</h2>
+        <h2 id="collection-reminder">Collection reminder</h2>
         <p>{format(reminder?.status)} · {date(reminder?.scheduled_at)}</p>
         <form {...formProps} data-kind="reminder">
           <label>Next reminder · Baghdad time<input name="scheduled_at" type="datetime-local" required /></label>
           <button disabled={busy || Number(invoice.outstanding) <= 0}>Reschedule</button>
         </form>
-        <h2>Cash history</h2>
+        <h2 id="cash-history">Cash history</h2>
         <ul>{ledger.map(row => <li key={row.id}>{format(row.entry_type)} · {format(row.amount)} USD · {date(row.collected_at)} · {format(row.note)}</li>)}</ul>
         <h2>Local cash snapshots</h2>
         <ul>{records('payment_fx_snapshots').filter(row => ledger.some(entry => entry.operation_id === row.operation_id)).map(row =>
@@ -317,12 +320,14 @@ export function OwnerAdmin() {
           <li key={row.id}>{format(row.reason)} · {date(row.created_at)} → {date(row.scheduled_at)}</li>)}</ul>
       </>}
     </>}
-    {tab === 'Products' && <>
-      <ul>{records('products').map(row => <li key={row.id}>
+    {productId && rows.products && !editProduct && <p className="error" role="alert">Product record unavailable.</p>}
+    {tab === 'Products' && (!productId || editProduct) && <>
+      {!editorOnly && <ul>{records('products').map(row => <li key={row.id}>
         <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} USD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
-      </li>)}</ul>
+      </li>)}</ul>}
       <h2>{editProduct ? 'Edit product' : 'Add product'}</h2>
-      {editProduct && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
+      {editorOnly && <Link className="admin-secondary" to="/admin/catalog">Back to catalog</Link>}
+      {editProduct && !editorOnly && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
       <form {...formProps} data-kind="product" key={editProduct?.id || 'new'}>
         <label>SKU<input name="sku" defaultValue={format(editProduct?.sku === undefined ? '' : editProduct.sku)} required /></label>
         <label>Product line<input name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
@@ -333,7 +338,7 @@ export function OwnerAdmin() {
         <label>Wholesale · USD<input name="wholesale_price" type="number" min="0" step="0.01"  disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
         <p>Own products may have no wholesale price while inactive. Add a price before activation.</p>
         <label>Retail · USD<input name="retail_price" type="number" min="0" step="0.01" defaultValue={String(editProduct?.retail_price ?? '')} /></label>
-        <label>Puffs<input name="puffs" type="number" min="1" step="1" defaultValue={String(editProduct?.puffs ?? '')} /></label>
+        <input name="puffs" type="hidden" defaultValue={String(editProduct?.puffs ?? '')} />
         <label>Units per carton<input name="units_per_carton" type="number" min="1" step="1" defaultValue={String(editProduct?.units_per_carton ?? '')} /></label>
         <label>Cost · USD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
         <label>Activation<select name="active" defaultValue={String(editProduct?.active ?? true)}><option value="true">Active</option><option value="false">Inactive</option></select></label>
@@ -350,7 +355,7 @@ export function OwnerAdmin() {
       </form>
     </>}
     {tab === 'Surveys' && <>
-      <h2>Publish a fixed survey version</h2>
+      {!builderOnly&&<h2>Publish a fixed survey version</h2>}
       <form {...formProps} data-kind="publish">
         <label>Title<input name="title" required /></label>
         {questions.map((q,index) => <fieldset key={q.id}>
@@ -365,7 +370,7 @@ export function OwnerAdmin() {
         <p>Publishing creates a permanent version. Publish another version to change a form without changing past answers.</p>
         {submitButton}
       </form>
-      <h2>Capture answers</h2>
+      {!builderOnly&&<><h2>Capture answers</h2>
       <label>Version<select value={versionId} onChange={event => setVersionId(event.target.value)}>
         <option value="">Choose version</option>{records('survey_versions').map(row => <option key={row.id} value={row.id}>{format(row.title)} · {row.id}</option>)}
       </select></label>
@@ -383,7 +388,7 @@ export function OwnerAdmin() {
               {(question.type === 'boolean' ? ['true', 'false'] : question.options || []).map(value => <option key={value}>{value}</option>)}</select>
             : <input name={'answer:' + question.id} type={question.type === 'number' ? 'number' : 'text'} step="any" required={question.required} />}</label>)}
         {submitButton}
-      </form>}
+      </form>}</>}
     </>}
     {tab === 'Imports' && <>
       <form {...formProps} data-kind="import">

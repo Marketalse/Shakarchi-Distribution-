@@ -43,13 +43,10 @@ export function Outlets({ version }: { version: number }) {
                   <span className="muted">{o.area} · {o.outlet_type}</span>
                 </span>
                 <span className="tags">
-                  <span className={o.relationship === 'customer' ? 'tag ok' : 'tag'}>
-                    {o.relationship === 'customer' ? t.customer : t.prospect}
-                  </span>
                   {queued.has(o.id) && <span className="tag warn">{t.waitingUpload}</span>}
                 </span>
               </Link>
-              <StoreNavigation retail={o}/>
+              <StoreNavigation retail={o} compact/>
             </li>
           ))}
         </ul>
