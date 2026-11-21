@@ -14,3 +14,5 @@
 
 ## Release
 Branch feature/standalone-admin is based on the pending mobile design PR #55 to preserve those changes. Separate PR targets that branch; merge/review order is #55 then this separation. #56 stays open until deployment and sign-in acceptance. Vercel connection is available but its API returned403 for the Shakarchi team; team consent is required before creating the separate Vercel project. Do not change current mobile production until handoff address is configured.
+
+Review: [PR #57](https://github.com/Marketalse/Shakarchi-Distribution-/pull/57). Local admin /, /admin and /admin/clients returned its independent admin entry (HTTP200). Vercel confirmed user still needed to select the Shakarchi team; deployment waits for completion of that consent step.
