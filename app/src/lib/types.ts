@@ -41,7 +41,11 @@ export interface Product {
   id: string
   product_line: string
   flavour: string
-  wholesale_price: number
+  selling_price?: number
+  items_per_half_pack?: number
+  packs_per_box?: number
+  /** Legacy cache only; never a new order price. */
+  wholesale_price?: number
   currency: string
   active: boolean
 }

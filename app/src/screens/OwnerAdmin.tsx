@@ -11,7 +11,7 @@ const text = (values: FormData, name: string) => String(values.get(name) ?? '').
 const date = (value: unknown) => value
   ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(String(value)))
   : 'Unknown'
-const tables = ['products', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'survey_runs', 'outlets', 'fx_rate_versions', 'payment_fx_snapshots'] as const
+const tables = ['products', 'product_lines', 'survey_brands', 'survey_versions', 'solo_invoice_balances', 'payments', 'collection_reminders', 'reminder_history', 'market_observations', 'survey_runs', 'outlets', 'fx_rate_versions', 'payment_fx_snapshots'] as const
 
 async function readTable(table: string): Promise<Row[]> {
   if (!supabase) throw Error('Connect Supabase to load owner administration.')
@@ -106,11 +106,6 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
       setRevision(value => value + 1);onChanged?.()
     } catch (failure) {
       const code = (failure as Error & { code?: string }).code
-      if (code && /^(P000[12]|22|23|42501)/.test(code)) {
-        pending.current = null
-        setPendingView(null)
-        localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
-      }
       setError(label === 'Parallel market rate' && code === 'P0001' ? 'Enter a rate above 0 and a future expiry.' : (failure as Error).message)
     } finally {
       setBusy(false)
@@ -163,8 +158,8 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
           const product = {
             sku: get('sku'), product_line: get('product_line'), flavour: get('flavour'), brand_id: get('brand_id'),
             is_own_brand: Boolean(productBrand?.is_own),
-            wholesale_price: productBrand?.is_own ? get('wholesale_price') || null : null,
-            retail_price: get('retail_price') || null, puffs: get('puffs') || null, units_per_carton: get('units_per_carton') || null,
+            selling_price: productBrand?.is_own ? get('selling_price') || null : null,
+            items_per_half_pack: get('items_per_half_pack'), packs_per_box: get('packs_per_box'), puffs: get('puffs') || null, units_per_carton: get('units_per_carton') || null,
             cost_price: productBrand?.is_own ? get('cost_price') || null : null,
             active: get('active') === 'true',
           }
@@ -323,24 +318,26 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
     {productId && rows.products && !editProduct && <p className="error" role="alert">Product record unavailable.</p>}
     {tab === 'Products' && (!productId || editProduct) && <>
       {!editorOnly && <ul>{records('products').map(row => <li key={row.id}>
-        <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.sku)} · {format(row.product_line)} · {format(row.wholesale_price)} USD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
+        <button onClick={() => { setEditProduct(row); setProductBrandId(String(row.brand_id || '')) }}>{format(row.flavour)} · {format(row.product_line)} · {format(row.selling_price)} USD · {row.is_own_brand ? 'Our catalog' : 'Competitor'} · {row.active ? 'Active' : 'Inactive'}</button>
       </li>)}</ul>}
       <h2>{editProduct ? 'Edit product' : 'Add product'}</h2>
       {editorOnly && <Link className="admin-secondary" to="/admin/catalog">Back to catalog</Link>}
       {editProduct && !editorOnly && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
       <form {...formProps} data-kind="product" key={editProduct?.id || 'new'}>
         <label>SKU<input name="sku" defaultValue={format(editProduct?.sku === undefined ? '' : editProduct.sku)} required /></label>
-        <label>Product line<input name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
+        <label>Product line<input list="brand-product-lines" name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
         <label>Variant<input name="flavour" defaultValue={String(editProduct?.flavour || '')} required /></label>
+        <datalist id="brand-product-lines">{records('product_lines').filter(row=>row.brand_id===productBrandId).map(row=><option key={String(row.id)} value={String(row.name)} />)}</datalist>
         <label>Brand<select name="brand_id" value={productBrandId} onChange={e => setProductBrandId(e.target.value)} required>
           <option value="">Choose brand</option>{records('survey_brands').map(row => <option key={row.id} value={row.id}>{format(row.name)} · {row.is_own ? 'Our catalog' : 'Competitor'}</option>)}
         </select></label>
-        <label>Wholesale · USD<input name="wholesale_price" type="number" min="0" step="0.01"  disabled={!productBrand?.is_own} defaultValue={String(editProduct?.wholesale_price ?? '')} /></label>
-        <p>Own products may have no wholesale price while inactive. Add a price before activation.</p>
-        <label>Retail · USD<input name="retail_price" type="number" min="0" step="0.01" defaultValue={String(editProduct?.retail_price ?? '')} /></label>
+        <label>Selling price per item · USD<input name="selling_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.selling_price ?? '')} /></label>
+        <p>Inactive own products may be unpriced. Prices and costs are per individual item; order prices follow the selected packaging.</p>
+        <label>Items per Half Pack<input name="items_per_half_pack" type="number" min="1" max="10000" step="1" required defaultValue={String(editProduct?.items_per_half_pack ?? 5)} /></label>
+        <label>Packs per Box<input name="packs_per_box" type="number" min="1" max="10000" step="1" required defaultValue={String(editProduct?.packs_per_box ?? 10)} /></label>
         <input name="puffs" type="hidden" defaultValue={String(editProduct?.puffs ?? '')} />
-        <label>Units per carton<input name="units_per_carton" type="number" min="1" step="1" defaultValue={String(editProduct?.units_per_carton ?? '')} /></label>
-        <label>Cost · USD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
+        <label>Original carton item count · reference<input name="units_per_carton" type="number" min="1" step="1" defaultValue={String(editProduct?.units_per_carton ?? '')} /></label>
+        <label>Cost per item · USD<input name="cost_price" type="number" min="0" step="0.01" disabled={!productBrand?.is_own} defaultValue={String(editProduct?.cost_price ?? '')} /></label>
         <label>Activation<select name="active" defaultValue={String(editProduct?.active ?? true)}><option value="true">Active</option><option value="false">Inactive</option></select></label>
         {submitButton}
       </form>

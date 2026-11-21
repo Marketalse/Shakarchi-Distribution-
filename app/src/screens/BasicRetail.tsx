@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
-import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
+import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, usdCents, usdAmount } from '../lib/money'
+import { packTotal } from '../lib/pack'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
@@ -14,7 +15,7 @@ import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
   id: string; brand: string | null; sku: string | null; product_line: string
-  flavour: string; wholesale_price: number
+  flavour: string; selling_price: number; items_per_half_pack: number; packs_per_box: number
 }
 type Invoice = {
   id: string; outlet_id: string; next_visit: string | null
@@ -140,13 +141,14 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
   const [revision, setRevision] = useState(0)
   const catalog = useRows(async () => {
     if (!supabase) throw new Error('Connect Supabase to load the catalog.')
-    const { data, error } = await supabase.from('solo_active_catalog')
-      .select('id,brand,sku,product_line,flavour,wholesale_price')
+    const { data, error } = await supabase.from('solo_order_catalog_v2')
+      .select('id,brand,sku,product_line,flavour,selling_price,items_per_half_pack,packs_per_box')
       .eq('active', true).eq('currency', 'USD').order('product_line').order('flavour')
     if (error) throw error
     return data as CatalogItem[]
   }, String(revision))
   const [brand, setBrand] = useState('')
+  const [productLine,setProductLine]=useState('')
   const [reviewing, setReviewing] = useState(false)
   const [payment, setPayment] = useState('Unpaid')
   const [savedInvoice, setSavedInvoice] = useState('')
@@ -166,7 +168,7 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
   const attempt = useRef<Attempt>(pendingAttempt)
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
-  const total = sum(selected.map(i => multiplyUsd(i.wholesale_price, lines[i.id])))
+  const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
   let partialBalance: string | undefined
   try { partialBalance = usdAmount(usdCents(total) - usdCents(initialReceipt || '0')) }
   catch { partialBalance = undefined }
@@ -177,7 +179,7 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
     setBusy(true)
     setError('')
     setSuccess('')
-    const items = selected.map(i => ({ sku_id: i.id, quantity: lines[i.id], price: i.wholesale_price }))
+    const items = selected.map(i => ({ sku_id: i.id, quantity: lines[i.id], price: i.selling_price, uom: 'pack' as const, items_per_half_pack: i.items_per_half_pack, packs_per_box: i.packs_per_box }))
     const receipt = payment === 'Paid' ? String(total) : payment === 'Unpaid' ? '0' : initialReceipt
     let initialAmount: bigint
     try { initialAmount = usdCents(receipt) }
@@ -187,18 +189,19 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
       setBusy(false)
       return
     }
-    const key = JSON.stringify([items, terms, nextVisit, receipt])
+    const key = JSON.stringify([items, terms, nextVisit, receipt, visitId])
     if (!attempt.current) attempt.current = { key, id: crypto.randomUUID() }
     setPendingAttempt(attempt.current)
-    const [savedItems, savedTerms, savedNextVisit, savedReceipt] = JSON.parse(attempt.current.key) as [
-      { sku_id: string; quantity: number; price: number }[], string, string, string,
+    const [savedItems, savedTerms, savedNextVisit, savedReceipt, savedVisit] = JSON.parse(attempt.current.key) as [
+      { sku_id: string; quantity: number; price: number; uom: 'pack'; items_per_half_pack: number; packs_per_box: number }[], string, string, string, string,
     ]
     try {
       localStorage.setItem(pendingKey, JSON.stringify(attempt.current))
+      if (!savedVisit || savedItems.some(item => item.uom !== 'pack' || !item.items_per_half_pack)) throw Error('Legacy order retained for review. Do not reinterpret its saved quantities.');
       const result = await soloApi(supabase).issueInvoice({
         id: attempt.current.id,
         request: {
-          currency: 'USD', outlet_id: outletId, visit_id: visitId,
+          contract_version: 2, currency: 'USD', outlet_id: outletId, visit_id: savedVisit,
           items: savedItems.map(item => ({ ...item, price: String(item.price) })),
           terms_days: Number(savedTerms),
           next_visit: savedNextVisit || undefined,
@@ -217,12 +220,6 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
       localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
       onSaved()
     } catch (failure) {
-      const code = (failure as Error & { code?: string }).code
-      if (code && /^(P000[12]|22|23|42501)/.test(code)) {
-        attempt.current = null
-        setPendingAttempt(null)
-        localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
-      }
       setError(message(failure))
     } finally {
       setBusy(false)
@@ -236,7 +233,7 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
         <section className="card">
           <h2>Review order</h2>
           {selected.map(item => <div className="summary-line" key={item.id}>
-            <span>{skuOf(item)} × {lines[item.id]}</span><strong>{money(multiplyUsd(item.wholesale_price, lines[item.id]))}</strong>
+            <span>{skuOf(item)} × {lines[item.id]} Packs</span><strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
         </section>
@@ -259,20 +256,23 @@ function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: 
         </button>
       </> : <>
         <nav className="retail-tabs" aria-label="Catalog brand">
-          <button type="button" aria-pressed={!brand} onClick={() => setBrand('')}>All</button>
+          <button type="button" aria-pressed={!brand} onClick={() => {setBrand('');setProductLine('')}}>All</button>
           {brands.map(value => <button type="button" key={value} aria-pressed={brand === value}
-            onClick={() => setBrand(value)}>{value}</button>)}
+            onClick={() => {setBrand(value);setProductLine('')}}>{value}</button>)}
         </nav>
-        {catalog.data?.filter(item => !brand || brandOf(item) === brand).map(item => <div className="card sku-row" key={item.id}>
+        <label>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
+        <p className="muted">Order in 0.5 Pack steps. Each product shows its own pack and box sizes.</p>
+        {catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine)).map(item => <div className="card sku-row" key={item.id}>
           <span className="product-thumbnail"><MobileIcon name="box" size={32} /></span>
-          <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(item.wholesale_price)} / unit</p></div>
-          <div className="stepper">
+          <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(packTotal(item.selling_price, item.items_per_half_pack, 1))} / Pack</p></div>
+          <div className="stepper-area"><p className="muted">½ Pack = {item.items_per_half_pack} items · Box = {item.packs_per_box} Packs</p><div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}
-              onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 1) }))}>−</button>
-            <output aria-label={skuOf(item) + ' quantity'}>{lines[item.id] || 0}</output>
+              onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 0.5) }))}>−</button>
+            <output aria-label={skuOf(item) + ' quantity'}>{lines[item.id] || 0} Packs</output>
             <button type="button" className="primary" aria-label={'Increase ' + skuOf(item)} disabled={lines[item.id] >= 100000}
-              onClick={() => setLines(current => ({ ...current, [item.id]: (current[item.id] || 0) + 1 }))}>+</button>
+              onClick={() => setLines(current => ({ ...current, [item.id]: (current[item.id] || 0) + 0.5 }))}>+</button>
           </div>
+          <button type="button" onClick={() => setLines(current => ({...current, [item.id]: Math.min(100000, (current[item.id] || 0) + item.packs_per_box)}))}>+ Box</button></div>
         </div>)}
         {catalog.data && catalog.data.length > 0 && <div className="cart-total"><div><small className="muted">{selected.length} SKUs</small><br /><strong>{money(total)}</strong></div>
           <button type="button" className="primary" disabled={!selected.length} onClick={() => setReviewing(true)}>Review</button></div>}
