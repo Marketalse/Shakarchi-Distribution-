@@ -325,4 +325,23 @@ await usdDb.exec("select set_config('request.jwt.claim.sub','" + other + "',fals
 await assert.rejects(usdRpc('update_solo_client',id(),editPayload),/Owner access/);
 await assert.rejects(usdRpc('submit_solo_observation',id(),observationPayload),/Owner access/);
 console.log('PASS · client identity-preserving edit and replay · competitor observation precision/targeting/replay.');
+await usdDb.exec('reset role');
+await usdDb.exec(await readFile(root+'013_owner_service_areas.sql','utf8'));
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+assert.equal((await usdDb.query('select count(*)::int as n from service_areas')).rows[0].n,3);
+const areaOp=id(),areaRequest={id:'mosul',active:false,expected_version:1};
+const changedArea=await usdRpc('set_solo_service_area',areaOp,areaRequest);
+assert.equal(changedArea.version,2);assert.equal(changedArea.province,'Nineveh');
+assert.deepEqual(await usdRpc('set_solo_service_area',areaOp,areaRequest),changedArea);
+await assert.rejects(usdRpc('set_solo_service_area',areaOp,{...areaRequest,active:true}),/different payload/);
+await assert.rejects(usdRpc('set_solo_service_area',id(),{...areaRequest,active:true}),/changed/);
+await assert.rejects(usdRpc('set_solo_service_area',id(),{id:'mosul',active:true,expected_version:2,province:'Baghdad'}),/required/);
+await assert.rejects(usdDb.exec("update service_areas set active=true where id='mosul'"),/permission denied/);
+assert.equal((await usdDb.query('select province from outlets where id=$1',[outlet])).rows[0].province,editedClient.province);
+await usdDb.exec("select set_config('request.jwt.claim.sub','"+other+"',false)");
+assert.equal((await usdDb.query('select count(*)::int as n from service_areas')).rows[0].n,0);
+await assert.rejects(usdRpc('set_solo_service_area',id(),areaRequest),/Owner access/);
+await usdDb.exec('reset role;set role anon');
+await assert.rejects(usdDb.query('select * from service_areas'),/permission denied/);
+console.log('PASS · service-area owner-only read/write · immutable province mapping · stale-version denial · exact retry · existing clients preserved.');
 await usdDb.close()

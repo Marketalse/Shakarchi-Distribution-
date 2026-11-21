@@ -7,9 +7,12 @@ import { captureOperation, surveyAnswers } from '../lib/capture'
 import { openCaptureSession, newSurveyDraft, saveSurveyDraft, queueSurveyDraft, requestCaptureFinish, type CaptureSession, type CaptureDraft, type CaptureReference } from '../lib/capture-store'
 import { cacheCaptureReference } from '../lib/capture-reference'
 import { useRef } from 'react'
+import { useServiceAreas } from '../lib/useServiceAreas'
+import { areaChoices } from '../lib/service-areas'
 import { liveQuery } from 'dexie'
 
-export function ClientEdit({ retail, onSaved, hideHeading=false }: { retail: Outlet; onSaved: () => void; hideHeading?:boolean }) {
+export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () => void }) {
+  const {areas}=useServiceAreas()
   const [optionalContact, setOptionalContact] = useState(Boolean(retail.staff_name || retail.staff_phone))
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -36,8 +39,9 @@ export function ClientEdit({ retail, onSaved, hideHeading=false }: { retail: Out
   }
   return <form className="form" onSubmit={event => void save(event)} key={retail.updated_at}>
     {!hideHeading&&<h2>Client profile</h2>}
-    {(['retail_name', 'owner_name', 'owner_phone', 'province', 'area', 'outlet_type', 'address'] as const).map(key =>
+    {(['retail_name', 'owner_name', 'owner_phone', 'area', 'outlet_type', 'address'] as const).map(key =>
       <label key={key}>{key.replaceAll('_', ' ').replace(/^./,letter=>letter.toUpperCase())}<input name={key} defaultValue={retail[key] ?? ''} required={['retail_name', 'province', 'area', 'outlet_type'].includes(key)} /></label>)}
+    <label>Service area<select name="province" defaultValue={retail.province} required>{areaChoices(areas,retail.province).map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
     <button type="button" className="link optional-contact" aria-expanded={optionalContact} aria-controls="edit-staff-contact" onClick={() => setOptionalContact(value => !value)}>{optionalContact ? 'Hide optional contact' : '+ Optional contact'}</button>
     <div id="edit-staff-contact" className="form" hidden={!optionalContact}>
       <label>Staff name<input name="staff_name" defaultValue={retail.staff_name ?? ''} /></label>

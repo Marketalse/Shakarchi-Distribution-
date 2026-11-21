@@ -10,6 +10,7 @@ import { AdminClients } from './AdminClients';
 import { NewOutlet } from './NewOutlet';
 import { Orders, OwnerProfile } from './OwnerPages';
 import { OwnerAdmin } from './OwnerAdmin';
+import { ServiceAreas } from './ServiceAreas';
 import '../admin.css';
 type Workspace = {
   data: AdminData;
@@ -38,6 +39,7 @@ const descriptions: Record<string, [string, string]> = {
   catalog: ['Catalog', 'Your existing product and brand records.'],
   surveys: ['Surveys & observations', 'Published forms and competitor intelligence.'],
   imports: ['Imports', 'Review your data before applying a batch.'],
+  areas: ['Service areas', 'Manage active choices for new client capture.'],
   settings: ['Workspace settings', 'Owner profile and manual exchange rates.'],
   search: ['Search', 'Find clients, invoices and product records.']
 };
@@ -482,6 +484,7 @@ function Settings() {
 <Panel title="Owner profile">
 <OwnerProfile userId={userId} embedded onChanged={refresh} />
 </Panel>
+<Panel title="Service areas"><p className="admin-subtle">Manage new-client choices while preserving saved client locations.</p><Link className="admin-secondary" to="/admin/areas">Manage service areas</Link></Panel>
 <Panel title="Manual exchange rate">
 <OwnerAdmin section="Exchange rate" embedded onChanged={refresh} />
 </Panel>
@@ -700,6 +703,7 @@ export function AdminWorkspace({
     <Route path="imports" element={<Panel title="Review and import JSON data">
 <OwnerAdmin section="Imports" embedded onChanged={refresh} />
 </Panel>} />
+<Route path="areas" element={<div className="admin-panel"><ServiceAreas embedded/></div>} />
 <Route path="settings" element={<Settings />} />
 <Route path="search" element={<Search />} />
 <Route path="*" element={<p>Page unavailable. <Link to="/admin">Open overview</Link>

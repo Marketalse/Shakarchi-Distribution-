@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { flushCapture } from './capture-store'
+import { cacheServiceAreas } from './service-areas'
 import { captureRemote } from './capture-remote'
 import { cacheCaptureReference } from './capture-reference'
 import { flushCommands } from './commands'
@@ -43,6 +44,7 @@ export function useSync(ownerId: string | undefined) {
       })
       await pullReference(db, supabaseSource(supabase))
       await cacheCaptureReference(db,ownerId,supabase)
+      try{await cacheServiceAreas(db,ownerId,supabase)}catch{/* Optional settings migration: retain the last known list. */}
       setError(problems.join(' · '))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))

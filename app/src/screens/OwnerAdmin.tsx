@@ -244,6 +244,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
 
   return <main className={embedded?'admin-module':undefined}>
     {!embedded && <><h1>Admin hub</h1>
+    <Link className="card card-link" to="/admin/areas">Service areas <span aria-hidden="true">→</span></Link>
     <Link className="card card-link" to="/admin/clients">Clients <span aria-hidden="true">→</span></Link>
     <label className="owner-section">Section
       <select value={tab} onChange={event => { setTab(event.target.value); setError(''); setNotice('') }}>
