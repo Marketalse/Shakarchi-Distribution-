@@ -6,7 +6,7 @@ export type SurveyVersion = { id: string; title: string; questions: Question[] }
 export type CaptureReference = { owner_id: string; versions: SurveyVersion[]; brands: SurveyBrand[]; cached_at: string }
 export type CaptureSession = {
   id: string; owner_id: string; outlet_id: string; opened_at: string
-  start_protocol?: 2; server_visit_id?: string; finish_requested?: boolean; finished_at?: string; finish_operation_id: string
+  start_source?: 'order'|'survey'; start_protocol?: 2; server_visit_id?: string; finish_requested?: boolean; finished_at?: string; finish_operation_id: string
 }
 export type CaptureDraft = {
   id: string; owner_id: string; session_id: string; outlet_id: string; version_id: string; brand_id: string
@@ -15,7 +15,7 @@ export type CaptureDraft = {
   created_at: string; updated_at: string; final_request?: Record<string,unknown>; last_error?: string; supersedes?: string
 }
 export type CaptureRemote = {
-  openVisit(id: string, outlet: string): Promise<string>
+  openVisit(id: string, outlet: string, source?: 'order'|'survey'): Promise<string>
   submit(id: string, request: Record<string,unknown>): Promise<unknown>
   finish(id: string, visit: string): Promise<unknown>
 }
@@ -35,15 +35,16 @@ export async function bindWorkspaceOwner(db: LocalDb, ownerId: string) {
       if(records.some(row=>keys.some(key=>typeof row[key]==='string' && row[key]!==ownerId)))throw Error('Saved records belong to another account. They have been retained; this workspace cannot be opened by this user.')
     }
     await db.local_meta.put({key:'workspace-owner',value:ownerId})
+    await db.local_meta.delete('offline-access-disabled')
   })
 }
-export async function openCaptureSession(db: LocalDb, ownerId: string, outletId: string) {
+export async function openCaptureSession(db: LocalDb, ownerId: string, outletId: string, source: 'order'|'survey'='survey') {
   await assertWorkspaceOwner(db,ownerId)
   return db.transaction('rw',db.capture_sessions,async () => {
     const found = (await db.capture_sessions.where('[owner_id+outlet_id]').equals([ownerId,outletId]).toArray())
       .find(row => !row.finished_at)
     if (found) return found
-    const row: CaptureSession = {start_protocol:2,id:crypto.randomUUID(),owner_id:ownerId,outlet_id:outletId,opened_at:new Date().toISOString(),finish_operation_id:crypto.randomUUID()}
+    const row: CaptureSession = {start_source:source,start_protocol:2,id:crypto.randomUUID(),owner_id:ownerId,outlet_id:outletId,opened_at:new Date().toISOString(),finish_operation_id:crypto.randomUUID()}
     await db.capture_sessions.add(row)
     return row
   })
@@ -92,15 +93,18 @@ export async function requestCaptureFinish(db: LocalDb, ownerId: string, session
   })
 }
 /** Each session resolves once; each submitted request freezes before its first network attempt. */
-export async function flushCapture(db: LocalDb, ownerId: string, remote: CaptureRemote) {
+export async function flushCapture(db: LocalDb, ownerId: string, remote: CaptureRemote, finish = true, onlySession?:string) {
   await assertWorkspaceOwner(db,ownerId)
+  const errors:string[]=[]
   const sessions=await db.capture_sessions.where('owner_id').equals(ownerId).sortBy('opened_at')
   for (const original of sessions) {
+    try {
+    if(onlySession && original.id!==onlySession)continue
     if (original.finished_at) continue
     let session=(await db.capture_sessions.get(original.id))!
     if (!session.server_visit_id) {
       if (session.start_protocol !== 2) throw Error('An older visit start needs review before syncing. Its client and survey records are retained; no new visit was assigned.')
-      const serverId=await remote.openVisit(session.id,session.outlet_id)
+      const serverId=await remote.openVisit(session.id,session.outlet_id,session.start_source??'survey')
       await db.capture_sessions.update(session.id,{server_visit_id:serverId})
       session={...session,server_visit_id:serverId}
     }
@@ -118,9 +122,12 @@ export async function flushCapture(db: LocalDb, ownerId: string, remote: Capture
       }
     }
     const currentDrafts=await db.capture_drafts.where('session_id').equals(session.id).toArray()
-    if (session.finish_requested && !currentDrafts.some(d=>['queued','rejected'].includes(d.status))) {
+    const pendingOrders=await db.commands.filter(c=>{const request=c.request as {visit_id?:string};return c.owner_id===ownerId && (request.visit_id===session.id || request.visit_id===session.server_visit_id)}).count()
+    if (finish && !pendingOrders && session.finish_requested && !currentDrafts.some(d=>['queued','rejected'].includes(d.status))) {
       await remote.finish(session.finish_operation_id,session.server_visit_id!)
       await db.capture_sessions.update(session.id,{finished_at:new Date().toISOString()})
     }
+    }catch(e){errors.push(e instanceof Error?e.message:String(e))}
   }
+  if(errors.length)throw Error(errors.join(' · '))
 }

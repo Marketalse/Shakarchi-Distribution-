@@ -18,10 +18,10 @@ import { FieldAccount } from './screens/FieldAccount'
 import { AdminHandoff } from './screens/AdminHandoff'
 
 export default function App() {
-  const { session, recovering, finishRecovery } = useSession()
-  const access = useOwnerAccess(session?.user.id)
-  const sync = useSync(access.allowed ? session?.user.id : undefined)
-  const repId = session?.user.id
+  const { session, offlineOwnerId, recovering, finishRecovery } = useSession()
+  const repId = session?.user.id ?? offlineOwnerId
+  const access = useOwnerAccess(repId)
+  const sync = useSync(access.allowed ? repId : undefined)
   const { pathname } = useLocation()
   const title = pathname === '/reports' ? 'Reports' : pathname === '/dashboard' ? 'Overview'
     : pathname === '/orders' ? 'Orders'
@@ -52,8 +52,9 @@ export default function App() {
           {sync.busy ? 'Syncing…' : !sync.online ? 'Offline' : sync.pending ? sync.pending + ' pending' : 'Sync'}
         </button>}
       </header>}
+      {access.allowed && (!sync.online || Boolean(sync.error)) && <p role="status" className="muted">Saved data is available on this device; balances may be from the last sync. Submitted work uploads automatically when connected.</p>}
       {access.allowed && sync.error && <p className="error" role="alert">Sync paused: {sync.error}. Pending records are retained.</p>}
-      {session === undefined ? <main><p role="status">Loading your workspace…</p></main>
+      {session === undefined && !offlineOwnerId ? <main><p role="status">Loading your workspace…</p></main>
         : !repId ? <Login />
         : recovering ? <NewPassword onDone={finishRecovery} />
         : !access.allowed ? <main><h2>Owner access</h2><p role={access.error ? 'alert' : 'status'}>{access.error || 'Checking owner access…'}</p>{access.error && <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>}</main>

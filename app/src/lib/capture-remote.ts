@@ -3,8 +3,8 @@ import type { CaptureRemote } from './capture-store'
 const failure=(error:{message:string;code?:string})=>Object.assign(Error(error.message),{code:error.code})
 export function captureRemote(client: SupabaseClient): CaptureRemote {
  return {
-  async openVisit(id,outlet) {
-   const {data,error}=await client.rpc('open_solo_visit_v2',{p_id:id,p_outlet:outlet,p_source:'survey'})
+  async openVisit(id,outlet,source='survey') {
+   const {data,error}=await client.rpc('open_solo_visit_v2',{p_id:id,p_outlet:outlet,p_source:source})
    if(error)throw failure(error)
    return String(data)
   },

@@ -16,10 +16,11 @@ export interface ReferenceSource {
 export async function pullReference(db: LocalDb, source: ReferenceSource): Promise<{ outlets: number; products: number; brands: number }> {
   const [outlets, products, brands] = await Promise.all([source.outlets(), source.products(), source.surveyBrands()])
   const queued = new Set((await db.outbox.where('table').equals('outlets').toArray()).map((i) => i.row_id))
-  await db.transaction('rw', [db.outlets, db.products, db.survey_brands], async () => {
+  await db.transaction('rw', [db.outlets, db.products, db.survey_brands,db.local_meta], async () => {
     await db.outlets.bulkPut(outlets.filter((o) => !queued.has(o.id)))
     await db.products.clear()
     await db.products.bulkPut(products)
+    await db.local_meta.put({key:'catalog-ready',value:new Date().toISOString()})
     await db.survey_brands.clear()
     await db.survey_brands.bulkPut(brands)
   })

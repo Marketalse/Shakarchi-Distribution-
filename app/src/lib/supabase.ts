@@ -1,3 +1,4 @@
+import {boundedFetch} from './network'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Remote } from './sync'
 import type { ReferenceSource } from './pull'
@@ -7,7 +8,7 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
 
 /** Null until the project URL and key are set in the environment. */
-export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null
+export const supabase: SupabaseClient | null = url && key ? createClient(url, key,{global:{fetch:boundedFetch}}) : null
 
 /** Sync target backed by Supabase. A row whose id already exists is left alone. */
 export function supabaseRemote(client: SupabaseClient): Remote {

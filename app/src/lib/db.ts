@@ -1,3 +1,4 @@
+import type {PendingPhoto} from './attachments'
 import Dexie, { type Table } from 'dexie'
 import type { CaptureReference, CaptureSession, CaptureDraft } from './capture-store'
 import type { PendingCommand } from './commands'
@@ -19,6 +20,7 @@ export class LocalDb extends Dexie {
   outbox!: Table<OutboxItem, number>
   commands!: Table<PendingCommand, string>
 
+  attachments!: Table<PendingPhoto,string>
   local_meta!: Table<{key:string;value:string},string>
   capture_reference!: Table<CaptureReference,string>
   capture_sessions!: Table<CaptureSession,string>
@@ -39,6 +41,7 @@ export class LocalDb extends Dexie {
     })
     this.version(2).stores({ commands: 'id, owner_id, queued_at' })
     this.version(3).stores({local_meta:'key',capture_reference:'owner_id',capture_sessions:'id,owner_id,[owner_id+outlet_id],opened_at',capture_drafts:'id,owner_id,session_id,status,created_at'})
+    this.version(4).stores({attachments:'id,owner_id'})
   }
 }
 

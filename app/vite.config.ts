@@ -26,7 +26,7 @@ export default defineConfig(({mode}) => {
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webp}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webp}'], navigateFallback: '/index.html', navigateFallbackDenylist: [/^\/admin(?:\/|$)/] },
     })]),
   ],
   build: admin ? {outDir:'dist-admin',rollupOptions:{input:resolve('admin.html')}} : undefined,
