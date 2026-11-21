@@ -99,3 +99,19 @@ describe('owner-bound offline capture',()=>{
   expect(s.calls).toEqual(['open','submit','finish'])
  })
 })
+
+it('retains an older unresolved visit start without guessing a new server identity', async () => {
+ const {db,visit,draft}=await prepared();await queueSurveyDraft(db,draft,{count:0});
+ await db.capture_sessions.update(visit.id,{start_protocol:undefined});
+ let opens=0;const s=server();
+ await expect(flushCapture(db,'owner',{...s.remote,openVisit:async()=>{opens++;return 'wrong'}})).rejects.toThrow('older visit start');
+ expect(opens).toBe(0);expect((await db.capture_drafts.get(draft.id))?.status).toBe('queued');
+ expect((await db.capture_sessions.get(visit.id))?.server_visit_id).toBeUndefined();
+});
+
+it('retains answers and the original resolved visit when a closed visit rejects submission',async()=>{
+ const {db,draft}=await prepared();await queueSurveyDraft(db,draft,{available:false,count:0});const s=server();let opens=0;
+ await expect(flushCapture(db,'owner',{...s.remote,openVisit:async()=>{opens++;return 'original-closed'},submit:async()=>{throw Object.assign(Error('Original visit closed; retain for review'),{code:'22023'})}})).rejects.toThrow('Original visit closed');
+ const saved=await db.capture_drafts.get(draft.id);expect(saved?.status).toBe('rejected');expect(saved?.final_request).toMatchObject({visit_id:'original-closed',answers:{available:false,count:0}});
+ await flushCapture(db,'owner',s.remote);expect(opens).toBe(1);expect(s.submitted.size).toBe(0);
+});

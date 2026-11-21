@@ -41,3 +41,5 @@ The [Delivery Tracker](https://github.com/users/Marketalse/projects/3) is a priv
 - 2026-11-21 · **#56 independent admin/capture boundary** · Owner clarified admin-only control/reporting and mobile-only capture. Separate entries/builds implemented;58 tests and both builds pass. Separate Vercel deployment needs Shakarchi team consent. Pending mobile PR #55 preserved. See [Standalone admin](../Technical/Standalone-admin.md).
 
 - 2026-11-21 · **#56 admin deployed separately** · Admin project READY at https://shakarchi-admin.vercel.app; independent entry/routes and anonymous RLS checked. Mobile handoff configured; capture-only code consolidated through #55/#57.58 tests/both builds pass. Owner login/visual acceptance remains pending.
+
+- 2026-11-21 · **#59/#60 prepared for review** · Stable visit mapping migration014 and legacy-unresolved guard; client overdue/invoice presentation added.64 tests, both builds and disposable001–014 regressions pass. Production migration/release pending review; actual logo pending. Owner reports phone results good, without timing/survey acceptance.

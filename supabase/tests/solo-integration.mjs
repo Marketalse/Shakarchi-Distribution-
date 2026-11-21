@@ -344,4 +344,27 @@ await assert.rejects(usdRpc('set_solo_service_area',id(),areaRequest),/Owner acc
 await usdDb.exec('reset role;set role anon');
 await assert.rejects(usdDb.query('select * from service_areas'),/permission denied/);
 console.log('PASS · service-area owner-only read/write · immutable province mapping · stale-version denial · exact retry · existing clients preserved.');
+
+await usdDb.exec('reset role');
+await usdDb.exec(await readFile(root+'014_stable_visit_start.sql','utf8'));
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+for(const row of (await usdDb.query('select id from visits where outlet_id=$1 and checked_out_at is null',[outlet])).rows) await usdRpc('finish_solo_visit',id(),{visit_id:row.id});
+const stableStart=id(),stableVisit=(await usdDb.query("select open_solo_visit($1,$2,'order') as id",[stableStart,outlet])).rows[0].id;
+const reuseStart=id(),reuseVisit=(await usdDb.query("select open_solo_visit_v2($1,$2,'survey') as id",[reuseStart,outlet])).rows[0].id;
+assert.equal(reuseVisit,stableVisit);
+await usdRpc('finish_solo_visit',id(),{visit_id:stableVisit});
+const freshVisit=(await usdDb.query("select open_solo_visit($1,$2,'survey') as id",[id(),outlet])).rows[0].id;
+const beforeReplay=(await usdDb.query('select count(*)::int as n from visits')).rows[0].n;
+assert.equal((await usdDb.query("select open_solo_visit($1,$2,'survey') as id",[reuseStart,outlet])).rows[0].id,stableVisit);
+assert.notEqual(freshVisit,stableVisit);
+assert.equal((await usdDb.query('select count(*)::int as n from visits')).rows[0].n,beforeReplay);
+await assert.rejects(usdDb.query("select open_solo_visit_v2($1,$2,'order')",[reuseStart,outlet]),/different payload/);
+await assert.rejects(usdDb.query("select open_solo_visit_v2($1,$2,'survey')",[opened,outlet]),/ended/);
+await assert.rejects(usdDb.query("select start_solo_visit($1,$2,'survey')",[stableVisit,outlet]),/Cannot start/);
+await usdDb.exec("select set_config('request.jwt.claim.sub','"+other+"',false)");
+await assert.rejects(usdDb.query("select open_solo_visit($1,$2,'survey')",[reuseStart,outlet]),/Owner access/);
+await usdDb.exec('reset role;set role anon');
+await assert.rejects(usdDb.query("select open_solo_visit($1,$2,'survey')",[id(),outlet]),/permission denied/);
+await assert.rejects(usdDb.query("select open_solo_visit_v2($1,$2,'survey')",[id(),outlet]),/permission denied/);
+console.log('PASS · stable reused-visit replay after close/new stop · no extra visit · payload mismatch · closed/owner/anon denial.');
 await usdDb.close()

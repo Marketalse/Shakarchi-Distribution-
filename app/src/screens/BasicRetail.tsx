@@ -6,6 +6,7 @@ import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCen
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
 import { DynamicSurvey } from './CaptureForms'
+import { ClientOverdue } from './ClientOverdue'
 import { MobileIcon } from './MobileIcon'
 import { StoreNavigation } from './StoreNavigation'
 import { currentReport, baghdadDay, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
@@ -98,7 +99,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
-      {tab === 'Profile' && <section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section>}
+      {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary retail={retail} revision={revision} /></>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
@@ -125,6 +126,7 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
+    <ClientOverdue outletId={retail.id} revision={revision}/>
     <ClientInvoiceHistory outletId={retail.id} revision={revision}/>
   </>
 }

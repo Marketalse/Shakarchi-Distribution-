@@ -6,7 +6,7 @@ export type SurveyVersion = { id: string; title: string; questions: Question[] }
 export type CaptureReference = { owner_id: string; versions: SurveyVersion[]; brands: SurveyBrand[]; cached_at: string }
 export type CaptureSession = {
   id: string; owner_id: string; outlet_id: string; opened_at: string
-  server_visit_id?: string; finish_requested?: boolean; finished_at?: string; finish_operation_id: string
+  start_protocol?: 2; server_visit_id?: string; finish_requested?: boolean; finished_at?: string; finish_operation_id: string
 }
 export type CaptureDraft = {
   id: string; owner_id: string; session_id: string; outlet_id: string; version_id: string; brand_id: string
@@ -43,7 +43,7 @@ export async function openCaptureSession(db: LocalDb, ownerId: string, outletId:
     const found = (await db.capture_sessions.where('[owner_id+outlet_id]').equals([ownerId,outletId]).toArray())
       .find(row => !row.finished_at)
     if (found) return found
-    const row: CaptureSession = {id:crypto.randomUUID(),owner_id:ownerId,outlet_id:outletId,opened_at:new Date().toISOString(),finish_operation_id:crypto.randomUUID()}
+    const row: CaptureSession = {start_protocol:2,id:crypto.randomUUID(),owner_id:ownerId,outlet_id:outletId,opened_at:new Date().toISOString(),finish_operation_id:crypto.randomUUID()}
     await db.capture_sessions.add(row)
     return row
   })
@@ -99,6 +99,7 @@ export async function flushCapture(db: LocalDb, ownerId: string, remote: Capture
     if (original.finished_at) continue
     let session=(await db.capture_sessions.get(original.id))!
     if (!session.server_visit_id) {
+      if (session.start_protocol !== 2) throw Error('An older visit start needs review before syncing. Its client and survey records are retained; no new visit was assigned.')
       const serverId=await remote.openVisit(session.id,session.outlet_id)
       await db.capture_sessions.update(session.id,{server_visit_id:serverId})
       session={...session,server_visit_id:serverId}

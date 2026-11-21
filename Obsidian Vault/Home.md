@@ -12,3 +12,5 @@ This is a planning baseline. Phase status and approval live in GitHub; an existi
 - [M2 database/access acceptance](Technical/M2-acceptance.md)
 
 - [Separate admin website and field capture app](Technical/Standalone-admin.md)
+
+- [Visit retry fix and client invoice feedback](Technical/Visit-retry-and-invoice-feedback.md)
