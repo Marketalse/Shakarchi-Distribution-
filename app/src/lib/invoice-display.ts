@@ -1,3 +1,4 @@
+import {packBreakdown} from './pack'
 import { multiplyUsd, sumUsd, usdCents } from './money'
 
 export type ProductSnapshot = { flavour?: string; name?: string; brand?: string; product_line?: string; mode?: string; sku?: string; contract_version?: number; base_uom?: string; selected_quantity?: number; items_per_half_pack?: number; packs_per_box?: number }
@@ -18,7 +19,7 @@ export function clientDebt(invoices: ClientBalance[], outletId:string, today:str
 
 /** Historical line values are not rescaled. New lines explicitly store integral half-packs. */
 export function invoiceQuantity(snapshot: ProductSnapshot | null, quantity: number) {
- return snapshot?.contract_version === 2 && snapshot.base_uom === 'half_pack' ? `${quantity / 2} Packs` : `${quantity} (legacy unit)`
+ return snapshot?.contract_version === 2 && snapshot.base_uom === 'half_pack' ? (snapshot.packs_per_box ? packBreakdown(quantity / 2,snapshot.packs_per_box) : `${quantity / 2} Packs`) : `${quantity} (legacy unit)`
 }
 export function invoiceUnit(snapshot: ProductSnapshot | null) { return snapshot?.contract_version === 2 ? ' / Pack' : ' / legacy unit' }
 

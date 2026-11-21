@@ -404,4 +404,24 @@ await assert.rejects(usdRpc('issue_solo_invoice_v2',id(),newRequest),/Owner acce
 await usdDb.exec('reset role;set role anon');
 await assert.rejects(usdRpc('issue_solo_invoice_v2',id(),newRequest),/permission denied/);
 console.log('PASS · FMCG per-item selling price · integral half-pack posting · SKU exceptions/Box · immutable history · versioned retry · legacy denial · line/brand registry · owner isolation.');
+// Cash defaults never post a receipt by implication; enforce new credit limits server-side.
+await usdDb.exec('reset role');
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+const oldTermsOp=id(),oldTermsRequest={...exceptionRequest,terms_days:14};
+const oldTermsResult=await usdRpc('issue_solo_invoice_v2',oldTermsOp,oldTermsRequest);
+await usdDb.exec('reset role');
+const beforeTermsHistory=JSON.stringify((await usdDb.query('select * from order_lines order by id')).rows);
+await usdDb.exec(await readFile(root+'016_cash_credit_terms.sql','utf8'));
+assert.equal(JSON.stringify((await usdDb.query('select * from order_lines order by id')).rows),beforeTermsHistory);
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+assert.deepEqual(await usdRpc('issue_solo_invoice_v2',oldTermsOp,oldTermsRequest),oldTermsResult);
+for(const days of [1,3,4.5,11,14,60])await assert.rejects(usdRpc('issue_solo_invoice_v2',id(),{...exceptionRequest,terms_days:days}),/4 to 10/);
+for(const days of [0,4,10]){
+ const op=id();await usdRpc('issue_solo_invoice_v2',op,{...exceptionRequest,terms_days:days,initial_amount:'0.0'});
+ const row=(await usdDb.query('select * from solo_invoice_balances where id=$1',[op])).rows[0];assert.equal(Number(row.collected),0);assert.equal(row.payment_status,'Unpaid');
+ assert.equal((await usdDb.query('select count(*)::int as n from payments where order_id=$1',[op])).rows[0].n,0);
+ const stored=(await usdDb.query("select payment_type,due_date-((now() at time zone 'Asia/Baghdad')::date) as days from orders where id=$1",[op])).rows[0];assert.equal(stored.days,days);assert.equal(stored.payment_type,days===0?'cash':'credit');
+}
+await assert.rejects(usdDb.query('select wsd_private.issue_solo_invoice_v2($1,$2)',[id(),JSON.stringify(exceptionRequest)]),/permission denied/);
+console.log('PASS · Cash due today without implicit receipt · credit4–10 only · historical14-day replay · protected underlying posting function.');
 await usdDb.close()
