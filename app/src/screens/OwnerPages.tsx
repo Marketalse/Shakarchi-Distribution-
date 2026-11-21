@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { MobileIcon } from './MobileIcon'
+import { invoiceItem, type ProductSnapshot } from '../lib/invoice-display'
+import '../invoice.css'
 import { formatUsd } from '../lib/money'
 import { supabase } from '../lib/supabase'
 
@@ -11,7 +13,7 @@ type Invoice = {
 }
 type InvoiceLine = {
   id: string; quantity: number; unit_price: string; line_total: string
-  product_snapshot: { sku?: string; product_line?: string; flavour?: string } | null
+  product_snapshot: ProductSnapshot | null
 }
 const money = formatUsd
 const day = (value: string) => new Intl.DateTimeFormat('en-GB', {
@@ -23,9 +25,12 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
   const [params,setParams]=useSearchParams()
   const invoiceId=params.get('invoice')
   const [invoices, setInvoices] = useState<Invoice[]>()
-  const [lines, setLines] = useState<InvoiceLine[]>()
+  const [lineState, setLineState] = useState<{id:string;rows?:InvoiceLine[];error?:string;clientName?:string}>()
   const [filter, setFilter] = useState('Pending invoices')
   const [selected, setSelected] = useState<Invoice>()
+  const lines=lineState?.id===selected?.id ? lineState?.rows : undefined
+  const lineError=lineState?.id===selected?.id ? lineState?.error : undefined
+  const logo=import.meta.env.VITE_COMPANY_LOGO_URL as string | undefined
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -51,12 +56,15 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
   useEffect(() => {
     if (!selected) return
     let active = true
-    void supabase?.from('order_lines').select('id,quantity,unit_price,line_total,product_snapshot')
-      .eq('order_id', selected.id).order('id').then(({ data, error }) => {
-        if (!active) return
-        if (error) setError(error.message)
-        else setLines(data as InvoiceLine[])
-      })
+    async function loadLines() {
+      if(!supabase)throw Error('The database connection is unavailable.')
+      const {data,error}=await supabase.from('order_lines').select('id,quantity,unit_price,line_total,product_snapshot').eq('order_id',selected!.id).order('id')
+      if(error)throw error
+      let clientName:string|undefined
+      if(!selected!.recipient_snapshot?.name){const client=await supabase.from('outlets').select('retail_name').eq('id',selected!.outlet_id).maybeSingle();if(!client.error)clientName=client.data?.retail_name}
+      if(active)setLineState({id:selected!.id,rows:data as InvoiceLine[],clientName})
+    }
+    void loadLines().catch(error=>{if(active){setLineState({id:selected!.id,error:fail(error)});setError(fail(error))}})
     return () => { active = false }
   }, [selected])
 
@@ -84,15 +92,12 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
 
   return <main>
     {selected ? <>
-      <button className="link" onClick={() => { setSelected(undefined);setParams({}); setLines(undefined); setNotice('') }}>Back to orders</button>
+      <button className="link" onClick={() => { setSelected(undefined);setParams({}); setLineState(undefined); setNotice('') }}>Back to orders</button>
       <section className="invoice-paper">
+        <header className="invoice-brand">{logo && <img src={logo} alt="Shakarchi Distribution logo" onError={event=>{event.currentTarget.hidden=true}} />}<strong>Shakarchi Distribution</strong></header>
         <div className="row"><h2>Invoice #{selected.invoice_no}</h2><span className="tag">{selected.payment_status}</span></div>
-        <p className="muted">{selected.recipient_snapshot?.name || 'Historical retail'} · {day(selected.created_at)}</p>
-        {!lines ? <p role="status">Loading invoice…</p> : lines.map(line =>
-          <div className="summary-line" key={line.id}><span>
-            {line.product_snapshot?.sku || line.product_snapshot?.product_line || 'Historical product'}
-            <small className="muted"> · {line.quantity} × {money(line.unit_price)}</small>
-          </span><strong>{money(line.line_total)}</strong></div>)}
+        <div className="invoice-recipient"><small className="muted">Bill to</small><h3>{selected.recipient_snapshot?.name || (lineState?.id===selected.id && lineState.clientName) || 'Client name unavailable'}</h3><p className="muted">{day(selected.created_at)}</p></div>
+        {!lines ? lineError ? <p>Invoice items could not be loaded.</p> : <p role="status">Loading invoice…</p> : <table className="invoice-items"><caption className="sr-only">Invoice items in USD</caption><thead><tr><th>Item</th><th>Brand</th><th>Mode / category</th><th>Unit price · USD</th><th>Qty</th><th>Total · USD</th></tr></thead><tbody>{lines.map(line=>{const item=invoiceItem(line.product_snapshot);return <tr key={line.id}><td data-label="Item">{item.name}</td><td data-label="Brand">{item.brand}</td><td data-label="Mode / category">{item.mode}</td><td data-label="Unit price · USD">{money(line.unit_price)}</td><td data-label="Qty">{line.quantity}</td><td data-label="Total · USD">{money(line.line_total)}</td></tr>})}</tbody></table>}
         <div className="summary-line"><span>Total</span><strong>{money(selected.total)}</strong></div>
         <div className="summary-line"><span>Collected</span><strong>{money(selected.collected)}</strong></div>
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>

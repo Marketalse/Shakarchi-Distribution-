@@ -4,13 +4,13 @@ const failure=(error:{message:string;code?:string})=>Object.assign(Error(error.m
 export function captureRemote(client: SupabaseClient): CaptureRemote {
  return {
   async openVisit(id,outlet) {
-   const {data,error}=await client.rpc('open_solo_visit',{p_id:id,p_outlet:outlet,p_source:'survey'})
+   const {data,error}=await client.rpc('open_solo_visit_v2',{p_id:id,p_outlet:outlet,p_source:'survey'})
    if(error)throw failure(error)
    return String(data)
   },
   async submit(id,request) {
    const {data,error}=await client.rpc('submit_solo_survey',{p_operation:id,p_request:request})
-   if(error)throw failure(error)
+   if(error)throw failure(error.message === 'Cannot start or resume this visit' ? {code:error.code,message:'The original visit has ended. Your saved answers are retained for review; do not move an uncertain submission to another visit.'} : error)
    return data
   },
   async finish(id,visit) {
