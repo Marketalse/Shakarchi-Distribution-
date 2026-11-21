@@ -32,3 +32,6 @@ Invoice receipt/detail viewing on mobile supports recording an order; aggregate 
 
 ## Release gate
 This branch builds both apps. Vercel project creation/environment configuration and real browser/iPhone acceptance are separate evidence. Do not claim the admin website is live until its own URL is deployed and verified.
+
+## Configured deployment
+Admin: https://shakarchi-admin.vercel.app (Vercel project `shakarchi-admin`). Mobile: https://shakarchi-distribution-pf5s.vercel.app . Both use Supabase `obzxlaaryevxnkekyiqt`. Cross-app origins and the admin recovery redirect are configured; site logins and unsent drafts remain separate.

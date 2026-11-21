@@ -16,3 +16,11 @@
 Branch feature/standalone-admin is based on the pending mobile design PR #55 to preserve those changes. Separate PR targets that branch; merge/review order is #55 then this separation. #56 stays open until deployment and sign-in acceptance. Vercel connection is available but its API returned403 for the Shakarchi team; team consent is required before creating the separate Vercel project. Do not change current mobile production until handoff address is configured.
 
 Review: [PR #57](https://github.com/Marketalse/Shakarchi-Distribution-/pull/57). Local admin /, /admin and /admin/clients returned its independent admin entry (HTTP200). Vercel confirmed user still needed to select the Shakarchi team; deployment waits for completion of that consent step.
+
+
+## Separate website deployment — 21 November2026
+- Admin Vercel project: shakarchi-admin / prj_nJBSxV4XpMebZwMFxSPl9zfl9POZ. Independent admin build and output configured; GitHub repository connected.
+- Admin URL: https://shakarchi-admin.vercel.app . Deployment dpl_5oXvcqmPoA59xUPo5Smg1oMEJPRB is READY. Root, clients, collections and settings paths return independent admin entry HTTP200. Published bundle contains admin controls and no field home.
+- Public Supabase connection configured for the existing project. Admin password-recovery redirect added while preserving all existing entries and the mobile site URL. Anonymous profile query returns no rows under existing RLS. No SQL/data/policy changes.
+- Mobile project configured with VITE_ADMIN_APP_URL; existing mobile origin retained. Capture-only mobile release is consolidated through PR #55 after merging #57 into it.58 tests and both final source builds pass.
+- Authenticated visual workflow and real iPhone acceptance remain pending; static entry checks do not prove authenticated UI operation. #54/#56 remain open for owner acceptance; #41/#47 device gates unchanged.

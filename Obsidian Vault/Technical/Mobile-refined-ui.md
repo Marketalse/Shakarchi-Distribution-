@@ -25,3 +25,7 @@ Visual browser/screenshot checks and real iPhone Safari review are NOT completed
 Review: [PR #55](https://github.com/Marketalse/Shakarchi-Distribution-/pull/55).
 
 Status: source ready for review; #54 remains open until visual acceptance. Production not updated by this branch yet.
+
+
+## Owner clarification superseding reporting layout
+Issue #56 / PR #57 replaces the mobile financial overview with field capture tasks/counts and moves all management/reporting to the standalone admin website. The original financial overview notes above describe the earlier design iteration, not the final release. See [Standalone admin](Standalone-admin.md).

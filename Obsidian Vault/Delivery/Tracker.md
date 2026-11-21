@@ -39,3 +39,5 @@ The [Delivery Tracker](https://github.com/users/Marketalse/projects/3) is a priv
 - 2026-11-21 · **#54 refined mobile source ready for review** · Local design script/assets approved after Figma quota limit. New mobile shell/login/overview/client/account presentation; existing USD/admin/queue contracts retained.56 tests/build pass; browser startup crash prevented visual checks. No production update yet. See [Mobile UI evidence](../Technical/Mobile-refined-ui.md).
 
 - 2026-11-21 · **#56 independent admin/capture boundary** · Owner clarified admin-only control/reporting and mobile-only capture. Separate entries/builds implemented;58 tests and both builds pass. Separate Vercel deployment needs Shakarchi team consent. Pending mobile PR #55 preserved. See [Standalone admin](../Technical/Standalone-admin.md).
+
+- 2026-11-21 · **#56 admin deployed separately** · Admin project READY at https://shakarchi-admin.vercel.app; independent entry/routes and anonymous RLS checked. Mobile handoff configured; capture-only code consolidated through #55/#57.58 tests/both builds pass. Owner login/visual acceptance remains pending.
