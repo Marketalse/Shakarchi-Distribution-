@@ -1,4 +1,6 @@
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { supabase } from './lib/supabase'
+import { useOwnerAccess } from './lib/useOwnerAccess'
 import { useSession } from './lib/useSession'
 import { useSync } from './lib/useSync'
 import { Login } from './screens/Login'
@@ -12,7 +14,8 @@ import { NewPassword } from './screens/NewPassword'
 
 export default function App() {
   const { session, recovering, finishRecovery } = useSession()
-  const sync = useSync(session?.user.id)
+  const access = useOwnerAccess(session?.user.id)
+  const sync = useSync(access.allowed ? session?.user.id : undefined)
   const repId = session?.user.id
   const { pathname } = useLocation()
   const title = pathname === '/dashboard' ? 'Overview'
@@ -38,7 +41,7 @@ export default function App() {
           <h1>{repId ? recovering ? 'New password' : title : 'Sign in'}</h1>
           <p>{repId ? 'Your wholesale workspace' : 'Owner access'}</p>
         </div>
-        {repId && <button className="sync-button" onClick={() => void sync.syncNow()}
+        {repId && access.allowed && <button className="sync-button" onClick={() => void sync.syncNow()}
           disabled={!sync.online || sync.busy} aria-label="Sync records">
           <span className={'signal ' + (sync.online ? 'online' : '')} />
           {sync.busy ? 'Syncing…' : !sync.online ? 'Offline' : sync.pending ? sync.pending + ' pending' : 'Sync'}
@@ -48,6 +51,7 @@ export default function App() {
       {session === undefined ? <main><p role="status">Loading your workspace…</p></main>
         : !repId ? <Login />
         : recovering ? <NewPassword onDone={finishRecovery} />
+        : !access.allowed ? <main><h2>Owner access</h2><p role={access.error ? 'alert' : 'status'}>{access.error || 'Checking owner access…'}</p>{access.error && <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>}</main>
         : <Routes key={repId}>
           <Route path="/" element={<Outlets version={sync.version + sync.pending} />} />
           <Route path="/outlets/new" element={<NewOutlet repId={repId} onSaved={() => void sync.refresh()} />} />
@@ -55,11 +59,11 @@ export default function App() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
           <Route path="/admin" element={<OwnerAdmin />} />
-          <Route path="/retails/:outletId" element={<RetailDetail version={sync.version + sync.pending} />} />
+          <Route path="/retails/:outletId" element={<RetailDetail version={sync.version + sync.pending} ownerId={repId} onCaptureChanged={() => void sync.refresh()} onSyncRequested={sync.syncNow} />} />
           <Route path="/visit/:outletId" element={<Visit repId={repId} onSaved={() => void sync.refresh()} />} />
           <Route path="*" element={<main><h2>Page unavailable</h2><Link to="/">Go to retails</Link></main>} />
         </Routes>}
-      {repId && !recovering && <nav className="footer-nav" aria-label="Main navigation">
+      {repId && access.allowed && !recovering && <nav className="footer-nav" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => <NavLink end={to === '/'} to={to} key={to}>
           <img src={'/wireframe/' + icon + '.svg'} width="24" height="24" alt="" />
           {label}

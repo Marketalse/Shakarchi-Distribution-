@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushCapture } from './capture-store'
+import { captureRemote } from './capture-remote'
+import { cacheCaptureReference } from './capture-reference'
 import { flushCommands } from './commands'
 import { db } from './db'
 import { flush, pendingCount } from './sync'
@@ -14,7 +17,12 @@ export function useSync(ownerId: string | undefined) {
   const [version, setVersion] = useState(0)
   const running = useRef(false)
 
-  const refresh = useCallback(async () => setPending(await pendingCount(db) + (ownerId ? await db.commands.where('owner_id').equals(ownerId).count() : 0)), [ownerId])
+  const refresh = useCallback(async () => {
+    if (!ownerId) { setPending(0); return }
+    const draftCount=ownerId ? await db.capture_drafts.where('owner_id').equals(ownerId).filter(d=>['queued','rejected'].includes(d.status)).count() : 0
+    const sessionCount=ownerId ? await db.capture_sessions.where('owner_id').equals(ownerId).filter(v=>!v.finished_at && (!v.server_visit_id || Boolean(v.finish_requested))).count() : 0
+    setPending(await pendingCount(db) + draftCount + sessionCount + (ownerId ? await db.commands.where('owner_id').equals(ownerId).count() : 0))
+  }, [ownerId])
 
   const syncNow = useCallback(async () => {
     if (!supabase || !ownerId || running.current) return
@@ -22,14 +30,20 @@ export function useSync(ownerId: string | undefined) {
     setBusy(true)
     try {
       const result = await flush(db, supabaseRemote(supabase))
-      if (result.stoppedBy) throw Error(result.stoppedBy)
+      const problems:string[]=[]
+      if (result.stoppedBy) {
+        if (await db.outbox.where('table').equals('outlets').count()) throw Error(result.stoppedBy)
+        problems.push(result.stoppedBy)
+      }
+      await flushCapture(db,ownerId,captureRemote(supabase))
       await flushCommands(db, ownerId, async (rpc, id, request) => {
         const { data, error } = await supabase!.rpc(rpc, { p_operation: id, p_request: request })
         if (error) throw Object.assign(new Error(error.message), { code: error.code })
         return data
       })
-      setError('')
       await pullReference(db, supabaseSource(supabase))
+      await cacheCaptureReference(db,ownerId,supabase)
+      setError(problems.join(' · '))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     } finally {

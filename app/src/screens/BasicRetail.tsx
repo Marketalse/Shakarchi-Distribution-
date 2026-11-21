@@ -55,14 +55,14 @@ function useRows<T>(loader: () => Promise<T>, key: string) {
   return state.key === key ? state : { key }
 }
 
-export function RetailDetail({ version }: { version: number }) {
+export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequested }: { version: number; ownerId: string; onCaptureChanged: () => void; onSyncRequested: () => Promise<void> }) {
   const { outletId } = useParams()
   const [tab, setTab] = useState('Summary')
   const [visitId, setVisitId] = useState('')
   const [visitError, setVisitError] = useState('')
   const [visitBusy, setVisitBusy] = useState(false)
   useEffect(() => {
-    if (!outletId || (tab === 'Summary' || tab === 'Profile') || !supabase) return
+    if (!outletId || (tab === 'Summary' || tab === 'Profile' || tab === 'Survey forms') || !supabase) return
     let active = true
     setVisitBusy(true)
     void openSharedVisit(supabase, outletId, tab === 'Order' ? 'order' : 'survey').then(
@@ -97,11 +97,11 @@ export function RetailDetail({ version }: { version: number }) {
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
       {tab === 'Profile' && <ClientEdit retail={retail} onSaved={() => setRevision(value => value + 1)} />}
-      {tab === 'Survey forms' && visitId && !visitBusy && !visitError && <DynamicSurvey outletId={outletId} visitId={visitId} />}
+      {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
-      {visitBusy && <p role="status">Loading visit…</p>}
-      {visitError && <p className="error" role="alert">{visitError}</p>}
-      {visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
+      {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
+      {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
+      {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
     </main>
