@@ -39,6 +39,7 @@ export function soloApi(client: SupabaseClient) {
     const { data: { session }, error: authError } = await client.auth.getSession()
     if (authError || !session) throw Error('Sign in before posting an operation.')
     return await sendCommand(db, session.user.id, name, command.id, command.request, async (rpc, id, request) => {
+      if (rpc === 'update_solo_client' && await db.outbox.where('table').equals('outlets').filter(row => row.row_id === (request as {outlet_id?:string}).outlet_id).count()) throw Error('Client edit is saved locally. Sync the new client first.')
       const { data, error } = await client.rpc(rpc, { p_operation: id, p_request: request })
       if (error) throw Object.assign(new Error(error.message), { code: error.code })
       return data

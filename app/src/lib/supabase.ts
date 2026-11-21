@@ -26,9 +26,13 @@ export function supabaseRemote(client: SupabaseClient): Remote {
 
 
 async function all<T>(client: SupabaseClient, table: string): Promise<T[]> {
-  const { data, error } = await client.from(table).select('*')
-  if (error) throw new Error(error.message)
-  return (data ?? []) as T[]
+  const rows:T[]=[]
+  for(let offset=0;;offset+=500){
+    const {data,error}=await client.from(table).select('*').order('id').range(offset,offset+499)
+    if(error)throw new Error(error.message)
+    rows.push(...data as T[])
+    if(data.length<500)return rows
+  }
 }
 
 /** Reference data from Supabase. The access rules decide which outlets come back. */
