@@ -42,3 +42,16 @@ export function localToUsd(sourceAmount: string, exchangeRate: string): Usd {
   const remainder = numerator % rate
   return usdAmount(cents + (remainder * 2n >= rate ? 1n : 0n))
 }
+
+/** Display only; canonical amounts and payment entry keep exact cents. */
+export function formatUsdSummary(value: string | number): string {
+  const cents=usdCents(value), absolute=cents<0n?-cents:cents
+  const tenths=(absolute+5n)/10n
+  return (cents<0n?'-$':'$')+new Intl.NumberFormat('en-US').format(tenths/10n)+'.'+tenths%10n
+}
+export function formatIqdRate(value: string | number): string {
+  const match=/^(\d+)(?:\.(\d+))?$/.exec(String(value))
+  if(!match) return 'Unavailable'
+  const fraction=(match[2]??'').replace(/0+$/,'')
+  return '$1 = '+new Intl.NumberFormat('en-US').format(BigInt(match[1]))+(fraction?'.'+fraction:'')+' IQD'
+}

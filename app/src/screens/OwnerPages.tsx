@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { formatUsd } from '../lib/money'
 import { supabase } from '../lib/supabase'
 
@@ -19,6 +19,8 @@ const day = (value: string) => new Intl.DateTimeFormat('en-GB', {
 const fail = (value: unknown) => value instanceof Error ? value.message : String(value)
 
 export function Orders() {
+  const [params,setParams]=useSearchParams()
+  const invoiceId=params.get('invoice')
   const [invoices, setInvoices] = useState<Invoice[]>()
   const [lines, setLines] = useState<InvoiceLine[]>()
   const [filter, setFilter] = useState('Pending invoices')
@@ -39,11 +41,11 @@ export function Orders() {
         result.push(...data as Invoice[])
         if (data.length < 500) break
       }
-      if (active) setInvoices(result)
+      if (active) {setInvoices(result);if(invoiceId){const target=result.find(row=>row.id===invoiceId);if(target)setSelected(target);else setError('Invoice unavailable.')}}
     }
     void load().catch(error => { if (active) setError(fail(error)) })
     return () => { active = false }
-  }, [])
+  }, [invoiceId])
 
   useEffect(() => {
     if (!selected) return
@@ -81,7 +83,7 @@ export function Orders() {
 
   return <main>
     {selected ? <>
-      <button className="link" onClick={() => { setSelected(undefined); setLines(undefined); setNotice('') }}>Back to orders</button>
+      <button className="link" onClick={() => { setSelected(undefined);setParams({}); setLines(undefined); setNotice('') }}>Back to orders</button>
       <section className="invoice-paper">
         <div className="row"><h2>Invoice #{selected.invoice_no}</h2><span className="tag">{selected.payment_status}</span></div>
         <p className="muted">{selected.recipient_snapshot?.name || 'Historical retail'} · {day(selected.created_at)}</p>
@@ -156,7 +158,7 @@ export function OwnerProfile({ userId }: { userId: string }) {
       <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
     </form>}
     <div className="profile-links">
-      <Link className="card card-link" to="/admin">Products, brands and owner tools <span aria-hidden="true">→</span></Link>
+      <Link className="card card-link" to="/admin">Admin hub <span aria-hidden="true">→</span></Link>
       <Link className="card card-link" to="/orders">Invoices and collections <span aria-hidden="true">→</span></Link>
       <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>
     </div>

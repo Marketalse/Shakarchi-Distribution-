@@ -114,3 +114,9 @@ button.link { border: 0; padding: 0; background: none; text-decoration: underlin
 .navigation-picker > summary { cursor: pointer; width: fit-content; }
 .navigation-options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .65rem; }
 .navigation-options a { min-height: 44px; }
+
+.icon-button{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px}.icon-button svg{flex:none}
+
+.invoice-summary{width:100%;border-collapse:collapse}.invoice-summary th,.invoice-summary td{text-align:left;padding:12px 4px;border-bottom:1px solid #e3e7eb}.invoice-summary th:last-child,.invoice-summary td:last-child{text-align:right}
+
+.retail-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.retail-row>a{flex:1;min-width:170px}.store-navigation{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.store-navigation a{font-size:.8rem;min-height:44px;display:inline-flex;align-items:center;padding:8px}.retail-row .store-navigation{padding:8px}

@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
-import { formatUsd, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
+import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, multiplyUsd, usdCents, usdAmount } from '../lib/money'
 import { soloApi, operation } from '../lib/solo-api'
 import { openSharedVisit } from '../lib/shared-visit'
-import { ClientEdit, DynamicSurvey } from './CaptureForms'
-import { ClientLocation } from './ClientLocation'
-import { currentReport, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
+import { DynamicSurvey } from './CaptureForms'
+import { StoreNavigation } from './StoreNavigation'
+import { currentReport, baghdadDay, type Balance, type CashEntry, type Reminder } from '../lib/reporting'
 import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
@@ -75,6 +75,8 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     if (!supabase || !visitId || visitBusy) return
     setVisitBusy(true)
     try {
+      const unfinished=await db.capture_sessions.where('[owner_id+outlet_id]').equals([ownerId,outletId!]).filter(row=>!row.finished_at).count()
+      if(unfinished)throw Error('Finish or sync the survey visit first. Its drafts are retained.')
       await soloApi(supabase).finishVisit(operation({ visit_id: visitId }))
       setVisitId(''); setTab('Summary'); setRevision(value => value + 1)
     } catch (failure) { setVisitError(message(failure)) }
@@ -91,19 +93,19 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     <main>
       <Link to="/">Retail list</Link>
       <h1>{retail.retail_name}</h1>
-      <ClientLocation retail={retail} allowCorrection onUpdated={() => setRevision(value => value + 1)} />
+      <StoreNavigation retail={retail} />
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
-      {tab === 'Profile' && <ClientEdit retail={retail} onSaved={() => setRevision(value => value + 1)} />}
+      {tab === 'Profile' && <section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
-      {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
+      {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
     </main>
   )
 }
@@ -120,13 +122,17 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
   return <>
     <dl className="metrics">
       <div><dt>Location</dt><dd>{retail.address || [retail.area, retail.province].join(', ')}</dd></div>
-      <div><dt>Total sales</dt><dd>{data ? money(sum(data.map(x => x.total))) : '—'}</dd></div>
-      <div><dt>Cost of goods · known snapshots</dt><dd>{data?.some(x => x.investment === null)
-        ? 'Cost data incomplete' : data ? money(sum(data.map(x => x.investment ?? 0))) : '—'}</dd></div>
+      <div><dt>↗ Total sales</dt><dd title={data?money(sum(data.map(x=>x.total))):undefined}>{data ? formatUsdSummary(sum(data.map(x => x.total))) : '—'}</dd></div>
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
+    <ClientInvoiceHistory outletId={retail.id} revision={revision}/>
   </>
+}
+
+function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:number}) {
+  const {data,error}=useRows(()=>rows<{id:string;created_at:string;total:string}>('solo_invoice_balances','id,outlet_id,created_at,total',outletId),'client-invoices:'+outletId+':'+revision)
+  return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
 function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: string; onSaved: () => void }) {
@@ -432,14 +438,14 @@ export function Dashboard({ version = 0 }: { version?: number }) {
   return <main>
     <h1>Dashboard</h1>
     <p className="muted">All-time USD totals · Current balances. Updated {new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(data.loadedAt))} · Baghdad time</p>
-    <button onClick={() => { setClock(Date.now()); setRefresh(v => v + 1) }}>Refresh report</button>
+    <button className="icon-button" aria-label="Refresh report" title="Refresh report" onClick={() => { setClock(Date.now()); setRefresh(v => v + 1) }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 7a9 9 0 1 0 1 9M20 2v6h-6"/></svg></button>
     <dl className="metrics">
-      <div><dt>Total sales</dt><dd>{money(report.sales)}</dd></div>
-      <div><dt>Net cash collected</dt><dd>{money(report.netCash)}</dd></div>
-      <div><dt>Still to collect</dt><dd>{money(report.outstanding)}</dd></div>
+      <div><dt>↗ Sales</dt><dd title={money(report.sales)}>{formatUsdSummary(report.sales)}</dd></div>
+      <div><dt>↙ Cash collected</dt><dd title={money(report.netCash)}>{formatUsdSummary(report.netCash)}</dd></div>
+      <div><dt>◷ To collect</dt><dd>{money(report.outstanding)}</dd></div>
       <div><dt>Overpayments</dt><dd>{money(report.overpayment)}</dd></div>
       <div><dt>Overdue invoices</dt><dd>{money(report.overdue)}</dd></div>
-      <div><dt>Total retails</dt><dd>{data.retails}</dd></div>
+      <div><dt>⌂ Retails</dt><dd>{data.retails}</dd></div>
       {['Paid', 'Partially paid', 'Unpaid'].map(status =>
         <div key={status}><dt>{status} invoices</dt><dd>{data.invoices.filter(i => i.payment_status === status).length}</dd></div>)}
     </dl>
@@ -447,9 +453,9 @@ export function Dashboard({ version = 0 }: { version?: number }) {
     {report.unallocatedCash !== '0.00' && <p className="warn-text">Cash not matched to listed invoices: {money(report.unallocatedCash)}. Included in net cash, kept separate from invoice balances.</p>}
     {report.unknownAging !== '0.00' && <p className="warn-text">Balance without a due date: {money(report.unknownAging)}. Not counted as overdue.</p>}
     {missingCosts > 0 && <p className="warn-text">{missingCosts} invoices have incomplete cost snapshots. Complete profit reporting is unavailable.</p>}
-    <section className="card" aria-label="Due payment reminders">
-      <h2>Payments to follow up · {report.due.length}</h2>
-      <p>Unpaid and partly paid invoices get a reminder after four days. Collect the balance or choose another reminder time.</p>
+    <section className="card" aria-label="Due payment reminders" id="payment-follow-up">
+      <h2 className="row"><span>◷ Payment follow-up</span><span className={report.due.length?'tag warn':'tag ok'} aria-label={report.due.length+' reminders due'}>{report.due.length || 'All clear'}</span></h2>
+      <p className="muted">{data.invoices.filter(i=>usdCents(i.outstanding)>0n && i.due_date && i.due_date<baghdadDay(new Date(clock))).length} overdue invoices</p>
       {!report.due.length && <p>No payment reminders due.</p>}
       <ul>{report.due.map(({invoice,scheduled_at}) => <li key={invoice.id}>
         <strong>{invoice.recipient_snapshot?.name || 'Invoice #' + invoice.invoice_no}</strong> · #{invoice.invoice_no} · {money(invoice.outstanding)} remaining
@@ -458,8 +464,9 @@ export function Dashboard({ version = 0 }: { version?: number }) {
       </li>)}</ul>
       <p className="muted">Reminders appear in the app. No push or email notifications.</p>
     </section>
-    <section className="card"><h2>Parallel exchange rate</h2>
-      <p>{rate ? rate.exchange_rate_used + ' IQD per $1 · ' + rate.rate_source + (new Date(rate.valid_until).getTime() <= clock ? ' · Expired' : ' · Active') : 'No manual rate entered. USD payments remain available.'}</p>
+    <section className="card"><h2>⇄ Exchange rate</h2>
+      <p><strong>{rate?formatIqdRate(rate.exchange_rate_used):'Rate unavailable'}</strong></p>
+      <p className="muted">{rate?(new Date(rate.valid_until).getTime()<=clock?'Expired — update before local payment':'Manually updated'):'USD payments available'}</p>
       <Link to="/admin">Manage rate in owner tools</Link>
     </section>
     <section className="card">

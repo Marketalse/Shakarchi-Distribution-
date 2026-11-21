@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../lib/db'
 import type { Outlet } from '../lib/types'
+import { StoreNavigation } from './StoreNavigation'
 import { en as t } from '../i18n/en'
 
 export function Outlets({ version }: { version: number }) {
@@ -34,7 +35,7 @@ export function Outlets({ version }: { version: number }) {
       ) : (
         <ul className="list">
           {shown.map((o) => (
-            <li key={o.id}>
+            <li key={o.id} className="retail-row">
               <Link to={`/retails/${o.id}`}>
                 <span>
                   <strong>{o.retail_name}</strong>
@@ -48,6 +49,7 @@ export function Outlets({ version }: { version: number }) {
                   {queued.has(o.id) && <span className="tag warn">{t.waitingUpload}</span>}
                 </span>
               </Link>
+              <StoreNavigation retail={o}/>
             </li>
           ))}
         </ul>
