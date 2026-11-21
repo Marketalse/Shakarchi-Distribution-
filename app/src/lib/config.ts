@@ -1,5 +1,5 @@
 // Lists the owner will confirm in the blueprint. Change here, nowhere else.
-export const OUTLET_TYPES = ['Vape shop', 'Kiosk', 'Supermarket', 'Wholesaler', 'Other']
+export const OUTLET_TYPES = ['Grocery', 'Mini market', 'Kiosk', 'Supermarket', 'Wholesaler', 'Other']
 
 export const PROVINCES = [
   'Erbil', 'Duhok', 'Sulaymaniyah', 'Halabja', 'Kirkuk', 'Nineveh', 'Baghdad',

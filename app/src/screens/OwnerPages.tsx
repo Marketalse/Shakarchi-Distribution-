@@ -18,7 +18,7 @@ const day = (value: string) => new Intl.DateTimeFormat('en-GB', {
 }).format(new Date(value))
 const fail = (value: unknown) => value instanceof Error ? value.message : String(value)
 
-export function Orders() {
+export function Orders({embedded=false}:{embedded?:boolean}={}) {
   const [params,setParams]=useSearchParams()
   const invoiceId=params.get('invoice')
   const [invoices, setInvoices] = useState<Invoice[]>()
@@ -97,7 +97,7 @@ export function Orders() {
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>
       </section>
       <button className="primary" onClick={() => void share()}>Share invoice summary</button>
-      <Link className="button" to={'/admin?invoice=' + selected.id}>Manage collections and reminders</Link>
+      <Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>
     </> : <>
       <nav className="retail-tabs" aria-label="Order list">
         {['All orders', 'Pending invoices'].map(value =>
@@ -120,7 +120,7 @@ export function Orders() {
   </main>
 }
 
-export function OwnerProfile({ userId }: { userId: string }) {
+export function OwnerProfile({ userId, embedded=false, onChanged }: { userId: string; embedded?:boolean;onChanged?:()=>void }) {
   const [profile, setProfile] = useState<{ full_name: string; phone: string | null }>()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -146,7 +146,7 @@ export function OwnerProfile({ userId }: { userId: string }) {
       full_name: name, phone: String(data.get('phone') || '').trim() || null,
     }).eq('id', userId)
     if (error) setError(error.message)
-    else setNotice('Profile updated.')
+    else {setProfile({full_name:name,phone:String(data.get('phone')||'').trim()||null});setNotice('Profile updated.');onChanged?.()}
     setBusy(false)
   }
   return <main>
@@ -157,11 +157,11 @@ export function OwnerProfile({ userId }: { userId: string }) {
       <label>Phone<input name="phone" type="tel" defaultValue={profile.phone ?? ''} autoComplete="tel" /></label>
       <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
     </form>}
-    <div className="profile-links">
+    {!embedded && <div className="profile-links">
       <Link className="card card-link" to="/admin">Admin hub <span aria-hidden="true">→</span></Link>
       <Link className="card card-link" to="/orders">Invoices and collections <span aria-hidden="true">→</span></Link>
       <button onClick={() => void supabase?.auth.signOut()}>Sign out</button>
-    </div>
+    </div>}
     {error && <p className="error" role="alert">{error}</p>}
     {notice && <p className="ok-text" role="status">{notice}</p>}
   </main>

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { useOwnerAccess } from './lib/useOwnerAccess'
@@ -9,9 +10,9 @@ import { NewOutlet } from './screens/NewOutlet'
 import { Dashboard, RetailDetail } from './screens/BasicRetail'
 import { Orders, OwnerProfile } from './screens/OwnerPages'
 import { Visit } from './screens/Visit'
-import { AdminClients } from './screens/AdminClients'
-import { OwnerAdmin } from './screens/OwnerAdmin'
 import { NewPassword } from './screens/NewPassword'
+
+const AdminWorkspace=lazy(()=>import('./screens/AdminWorkspace').then(module=>({default:module.AdminWorkspace})))
 
 export default function App() {
   const { session, recovering, finishRecovery } = useSession()
@@ -19,6 +20,7 @@ export default function App() {
   const sync = useSync(access.allowed ? session?.user.id : undefined)
   const repId = session?.user.id
   const { pathname } = useLocation()
+  const adminMode=(pathname==='/admin'||pathname.startsWith('/admin/')) && access.allowed && !recovering
   const title = pathname === '/dashboard' ? 'Overview'
     : pathname === '/orders' ? 'Orders'
     : pathname === '/me' ? 'Me'
@@ -35,8 +37,8 @@ export default function App() {
   ]
 
   return (
-    <div className="app-shell">
-      <header className="top">
+    <div className={adminMode?'admin-app':'app-shell'}>
+      {!adminMode && <header className="top">
         <div>
           <Link to={repId ? '/dashboard' : '/'} className="wordmark">Shakarchi Distribution</Link>
           <h1>{repId ? recovering ? 'New password' : title : 'Sign in'}</h1>
@@ -47,8 +49,8 @@ export default function App() {
           <span className={'signal ' + (sync.online ? 'online' : '')} />
           {sync.busy ? 'Syncing…' : !sync.online ? 'Offline' : sync.pending ? sync.pending + ' pending' : 'Sync'}
         </button>}
-      </header>
-      {sync.error && <p className="error" role="alert">Sync paused: {sync.error}. Pending records are retained.</p>}
+      </header>}
+      {!adminMode && access.allowed && sync.error && <p className="error" role="alert">Sync paused: {sync.error}. Pending records are retained.</p>}
       {session === undefined ? <main><p role="status">Loading your workspace…</p></main>
         : !repId ? <Login />
         : recovering ? <NewPassword onDone={finishRecovery} />
@@ -59,14 +61,12 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard version={sync.version} />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
-          <Route path="/admin/clients" element={<AdminClients />} />
-          <Route path="/admin/clients/:outletId" element={<AdminClients />} />
-          <Route path="/admin" element={<OwnerAdmin />} />
+          <Route path="/admin/*" element={<Suspense fallback={<main role="status">Loading admin workspace…</main>}><AdminWorkspace userId={repId} onSync={sync.syncNow} syncBusy={sync.busy} syncError={sync.error} pendingCount={sync.pending} online={sync.online}/></Suspense>} />
           <Route path="/retails/:outletId" element={<RetailDetail version={sync.version + sync.pending} ownerId={repId} onCaptureChanged={() => void sync.refresh()} onSyncRequested={sync.syncNow} />} />
           <Route path="/visit/:outletId" element={<Visit repId={repId} onSaved={() => void sync.refresh()} />} />
           <Route path="*" element={<main><h2>Page unavailable</h2><Link to="/">Go to retails</Link></main>} />
         </Routes>}
-      {repId && access.allowed && !recovering && <nav className="footer-nav" aria-label="Main navigation">
+      {repId && access.allowed && !recovering && !adminMode && <nav className="footer-nav" aria-label="Main navigation">
         {tabs.map(([to, label, icon]) => <NavLink end={to === '/'} to={to} key={to}>
           <img src={'/wireframe/' + icon + '.svg'} width="24" height="24" alt="" />
           {label}

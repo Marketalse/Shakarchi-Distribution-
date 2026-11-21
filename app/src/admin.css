@@ -1,0 +1,803 @@
+.admin-app{
+  min-height:100vh;
+  background:#f5f7f9;
+  color:#132238}
+  .admin-workspace{
+    --ink:#132238;
+    --muted:#788394;
+    --line:#e9edf1;
+    --bg:#f5f7f9;
+    --lime:#c8f04a;
+    display:grid;
+    grid-template-columns:252px minmax(0,1fr);
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--ink);
+    font-size:13px;
+    line-height:1.5}
+    .admin-sidebar{
+      position:sticky;
+      top:16px;
+      margin:16px 0 16px 16px;
+      height:calc(100dvh - 32px);
+      min-height:640px;
+      padding:24px 16px;
+      background:#142439;
+      border-radius:22px;
+      display:flex;
+      flex-direction:column;
+      color:#aab3c2;
+      z-index:20}
+      .admin-sidebar-brand{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:0 12px}
+        .admin-sidebar-brand>a{
+          color:var(--lime);
+          font-size:36px;
+          font-weight:700;
+          text-decoration:none;
+          letter-spacing:-1.8px}
+          .admin-sidebar-brand button{
+            border:0;
+            background:transparent;
+            padding:8px;
+            color:#aab3c2;
+            min-width:32px}
+            .admin-workspace-label{
+              font-size:9px;
+              letter-spacing:.6px;
+              font-weight:500;
+              margin:12px 12px 32px}
+              .admin-sidebar nav{
+                display:flex;
+                flex-direction:column;
+                gap:9px}
+                .admin-sidebar nav a{
+                  display:flex;
+                  align-items:center;
+                  gap:12px;
+                  padding:13px 16px;
+                  border-radius:12px;
+                  min-height:46px;
+                  color:#aab3c2;
+                  text-decoration:none;
+                  font-weight:500}
+                  .admin-sidebar nav a.active{
+                    background:var(--lime);
+                    color:var(--ink)}
+                    .admin-sidebar nav a:hover:not(.active){
+                      background:#203149;
+                      color:white}
+                      .admin-sidebar nav svg{
+                        flex:none}
+                        .admin-sidebar-footer{
+                          margin-top:auto;
+                          padding:28px 8px 4px}
+                          .admin-sidebar-note{
+                            padding:18px 16px;
+                            background:#203149;
+                            border-radius:16px;
+                            display:grid;
+                            gap:10px;
+                            font-size:11px}
+                            .admin-sidebar-note svg{
+                              color:var(--lime)}
+                              .admin-sidebar-note strong{
+                                font-size:12px;
+                                color:white}
+                                .admin-sidebar-owner{
+                                  display:flex;
+                                  align-items:center;
+                                  gap:12px;
+                                  text-decoration:none;
+                                  color:white;
+                                  border-top:1px solid #586478;
+                                  margin-top:28px;
+                                  padding-top:22px;
+                                  font-size:12px}
+                                  .admin-sidebar-owner small{
+                                    display:block;
+                                    color:#aab3c2;
+                                    font-size:10px;
+                                    margin-top:4px}
+                                    .admin-avatar{
+                                      display:inline-flex;
+                                      align-items:center;
+                                      justify-content:center;
+                                      flex:none;
+                                      width:44px;
+                                      height:44px;
+                                      border-radius:14px;
+                                      background:#e8eef8;
+                                      color:var(--ink);
+                                      font-size:12px;
+                                      font-weight:600;
+                                      text-decoration:none}
+                                      .admin-sidebar-owner .admin-avatar{
+                                        background:var(--lime);
+                                        width:40px;
+                                        height:40px;
+                                        border-radius:12px}
+                                        .admin-field-link{
+                                          display:block;
+                                          color:#c8d1df;
+                                          text-decoration:none;
+                                          font-size:11px;
+                                          margin-top:18px}
+                                          .admin-main{
+                                            min-width:0;
+                                            padding:28px 32px 24px}
+                                            .admin-breadcrumb{
+                                              display:flex;
+                                              gap:8px;
+                                              font-size:11px;
+                                              color:var(--muted);
+                                              margin-bottom:16px}
+                                              .admin-topbar{
+                                                display:flex;
+                                                align-items:center;
+                                                gap:18px;
+                                                margin-bottom:34px}
+                                                .admin-search{
+                                                  display:flex;
+                                                  align-items:center;
+                                                  gap:10px;
+                                                  padding:0 15px;
+                                                  background:white;
+                                                  border-radius:12px;
+                                                  min-height:46px;
+                                                  max-width:490px;
+                                                  flex:1;
+                                                  color:var(--muted)}
+                                                  .admin-search input{
+                                                    border:0;
+                                                    background:transparent;
+                                                    box-shadow:none;
+                                                    min-width:60px;
+                                                    width:100%;
+                                                    font-size:12px;
+                                                    padding:12px 0;
+                                                    color:var(--ink);
+                                                    outline-offset:2px}
+                                                    .admin-search button{
+                                                      border:0;
+                                                      background:transparent;
+                                                      color:var(--muted);
+                                                      padding:5px;
+                                                      font-size:11px;
+                                                      min-height:36px}
+                                                      .admin-topbar-actions{
+                                                        display:flex;
+                                                        align-items:center;
+                                                        gap:16px;
+                                                        margin-left:auto}
+                                                        .admin-topbar-actions select,.admin-today{
+                                                          background:white;
+                                                          border:0;
+                                                          border-radius:12px;
+                                                          padding:12px;
+                                                          font-size:11px;
+                                                          font-weight:500;
+                                                          max-width:190px}
+                                                          .admin-notification{
+                                                            color:var(--muted);
+                                                            position:relative;
+                                                            display:inline-flex;
+                                                            align-items:center;
+                                                            justify-content:center;
+                                                            width:32px;
+                                                            height:44px;
+                                                            text-decoration:none}
+                                                            .admin-notification>span{
+                                                              position:absolute;
+                                                              top:0;
+                                                              right:-3px;
+                                                              background:var(--lime);
+                                                              color:var(--ink);
+                                                              border-radius:10px;
+                                                              font-size:9px;
+                                                              padding:1px 5px}
+                                                              .admin-refresh{
+                                                                display:flex;
+                                                                align-items:center;
+                                                                gap:5px;
+                                                                padding:6px;
+                                                                background:transparent;
+                                                                border:0;
+                                                                color:var(--muted);
+                                                                font-size:10px;
+                                                                min-height:44px}
+                                                                .admin-refresh svg{
+                                                                  width:20px;
+                                                                  height:20px}
+                                                                  .admin-page-heading{
+                                                                    display:flex;
+                                                                    align-items:center;
+                                                                    justify-content:space-between;
+                                                                    gap:16px;
+                                                                    margin-bottom:28px}
+                                                                    .admin-page-heading h1{
+                                                                      font-size:28px;
+                                                                      font-weight:600;
+                                                                      line-height:1.3;
+                                                                      margin:0 0 6px;
+                                                                      letter-spacing:-.5px}
+                                                                      .admin-page-heading p{
+                                                                        color:var(--muted);
+                                                                        margin:0;
+                                                                        font-size:13px}
+                                                                        .admin-primary,.admin-secondary{
+                                                                          display:inline-flex;
+                                                                          align-items:center;
+                                                                          justify-content:center;
+                                                                          gap:8px;
+                                                                          min-height:44px;
+                                                                          border-radius:12px;
+                                                                          padding:12px 20px;
+                                                                          text-decoration:none;
+                                                                          color:var(--ink);
+                                                                          font-size:12px;
+                                                                          font-weight:500;
+                                                                          white-space:nowrap}
+                                                                          .admin-primary{
+                                                                            background:var(--lime);
+                                                                            border:1px solid var(--lime);
+                                                                            font-weight:600}
+                                                                            .admin-secondary{
+                                                                              background:white;
+                                                                              border:1px solid var(--line)}
+                                                                              .admin-secondary.full{
+                                                                                display:flex;
+                                                                                width:100%;
+                                                                                margin-top:20px}
+                                                                                .admin-content{
+                                                                                  display:grid;
+                                                                                  gap:20px;
+                                                                                  min-width:0}
+                                                                                  .admin-metrics{
+                                                                                    display:grid;
+                                                                                    grid-template-columns:repeat(3,minmax(0,1fr));
+                                                                                    gap:16px}
+                                                                                    .admin-metrics.four{
+                                                                                      grid-template-columns:repeat(4,minmax(0,1fr))}
+                                                                                      .admin-metric{
+                                                                                        background:white;
+                                                                                        border-radius:20px;
+                                                                                        padding:20px;
+                                                                                        min-height:126px;
+                                                                                        display:flex;
+                                                                                        flex-direction:column;
+                                                                                        gap:8px;
+                                                                                        min-width:0}
+                                                                                        .admin-metric>span{
+                                                                                          color:var(--muted);
+                                                                                          font-size:12px;
+                                                                                          font-weight:500}
+                                                                                          .admin-metric strong{
+                                                                                            font-size:28px;
+                                                                                            font-weight:600;
+                                                                                            letter-spacing:-.7px;
+                                                                                            overflow-wrap:anywhere}
+                                                                                            .admin-metric small{
+                                                                                              font-size:10px;
+                                                                                              color:var(--muted);
+                                                                                              margin-top:auto}
+                                                                                              .admin-grid{
+                                                                                                display:grid;
+                                                                                                grid-template-columns:minmax(0,2fr) minmax(280px,1fr);
+                                                                                                gap:20px}
+                                                                                                .admin-panel{
+                                                                                                  background:white;
+                                                                                                  border-radius:20px;
+                                                                                                  padding:24px;
+                                                                                                  min-width:0}
+                                                                                                  .admin-panel-heading{
+                                                                                                    display:flex;
+                                                                                                    align-items:center;
+                                                                                                    justify-content:space-between;
+                                                                                                    gap:12px;
+                                                                                                    margin-bottom:16px}
+                                                                                                    .admin-panel-heading h2{
+                                                                                                      font-size:16px;
+                                                                                                      font-weight:600;
+                                                                                                      margin:0;
+                                                                                                      line-height:1.5}
+                                                                                                      .admin-subtle{
+                                                                                                        font-size:11px;
+                                                                                                        color:var(--muted);
+                                                                                                        margin:4px 0 14px}
+                                                                                                        .admin-big-number{
+                                                                                                          display:block;
+                                                                                                          font-size:32px;
+                                                                                                          letter-spacing:-.6px;
+                                                                                                          font-weight:600;
+                                                                                                          margin:22px 0 6px}
+                                                                                                          .admin-panel progress{
+                                                                                                            height:14px;
+                                                                                                            width:100%;
+                                                                                                            border:0;
+                                                                                                            border-radius:10px;
+                                                                                                            overflow:hidden;
+                                                                                                            appearance:none;
+                                                                                                            display:block;
+                                                                                                            margin:24px 0 16px;
+                                                                                                            background:#f5f7f9}
+                                                                                                            .admin-panel progress::-webkit-progress-bar{
+                                                                                                              background:#f5f7f9;
+                                                                                                              border-radius:10px}
+                                                                                                              .admin-panel progress::-webkit-progress-value{
+                                                                                                                background:var(--lime);
+                                                                                                                border-radius:10px}
+                                                                                                                .admin-panel progress::-moz-progress-bar{
+                                                                                                                  background:var(--lime);
+                                                                                                                  border-radius:10px}
+                                                                                                                  .admin-progress-caption{
+                                                                                                                    font-size:12px;
+                                                                                                                    font-weight:500;
+                                                                                                                    display:block}
+                                                                                                                    .admin-chart{
+                                                                                                                      height:170px;
+                                                                                                                      display:flex;
+                                                                                                                      align-items:stretch;
+                                                                                                                      gap:clamp(3px,1vw,18px);
+                                                                                                                      padding:0 8px;
+                                                                                                                      margin:24px 0 0;
+                                                                                                                      background:repeating-linear-gradient(to top,transparent,transparent 39px,#e9edf1 40px,#e9edf1 41px)}
+                                                                                                                      .admin-chart-column{
+                                                                                                                        display:flex;
+                                                                                                                        flex-direction:column;
+                                                                                                                        align-items:center;
+                                                                                                                        justify-content:end;
+                                                                                                                        flex:1;
+                                                                                                                        min-width:0}
+                                                                                                                        .admin-bar-track{
+                                                                                                                          height:145px;
+                                                                                                                          width:100%;
+                                                                                                                          display:flex;
+                                                                                                                          align-items:end;
+                                                                                                                          justify-content:center}
+                                                                                                                          .admin-bar-track>span{
+                                                                                                                            display:block;
+                                                                                                                            width:min(32px,90%);
+                                                                                                                            background:#e8eef8;
+                                                                                                                            border-radius:5px;
+                                                                                                                            min-height:0}
+                                                                                                                            .admin-bar-track>.last{
+                                                                                                                              background:var(--lime)}
+                                                                                                                              .admin-chart-column>small{
+                                                                                                                                height:25px;
+                                                                                                                                font-size:9px;
+                                                                                                                                display:block;
+                                                                                                                                padding-top:8px;
+                                                                                                                                color:var(--muted)}
+                                                                                                                                .admin-chart-values{
+                                                                                                                                  margin-top:12px;
+                                                                                                                                  font-size:10px;
+                                                                                                                                  color:var(--muted)}
+                                                                                                                                  .admin-chart-values summary{
+                                                                                                                                    cursor:pointer}
+                                                                                                                                    .admin-chart-values ul{
+                                                                                                                                      max-height:140px;
+                                                                                                                                      overflow:auto}
+                                                                                                                                      .admin-badge{
+                                                                                                                                        display:inline-flex;
+                                                                                                                                        align-items:center;
+                                                                                                                                        justify-content:center;
+                                                                                                                                        background:#f5f7f9;
+                                                                                                                                        border-radius:8px;
+                                                                                                                                        padding:6px 12px;
+                                                                                                                                        font-size:10px;
+                                                                                                                                        font-weight:500;
+                                                                                                                                        white-space:nowrap}
+                                                                                                                                        .admin-badge.good,.admin-badge.neutral{
+                                                                                                                                          background:#edf4da}
+                                                                                                                                          .admin-badge.attention{
+                                                                                                                                            background:#fff0e8;
+                                                                                                                                            color:#b34e39}
+                                                                                                                                            .admin-count{
+                                                                                                                                              min-width:38px;
+                                                                                                                                              height:38px;
+                                                                                                                                              display:flex;
+                                                                                                                                              align-items:center;
+                                                                                                                                              justify-content:center;
+                                                                                                                                              border-radius:12px;
+                                                                                                                                              background:#f5f7f9;
+                                                                                                                                              font-size:16px;
+                                                                                                                                              font-weight:600}
+                                                                                                                                              .admin-count.urgent{
+                                                                                                                                                background:#fff0e8;
+                                                                                                                                                color:#763b2d}
+                                                                                                                                                .admin-attention{
+                                                                                                                                                  display:flex;
+                                                                                                                                                  align-items:center;
+                                                                                                                                                  gap:14px;
+                                                                                                                                                  color:var(--ink);
+                                                                                                                                                  text-decoration:none;
+                                                                                                                                                  margin:18px 0 26px}
+                                                                                                                                                  .admin-attention>span:last-child{
+                                                                                                                                                    display:grid;
+                                                                                                                                                    gap:4px}
+                                                                                                                                                    .admin-attention strong{
+                                                                                                                                                      font-size:12px;
+                                                                                                                                                      font-weight:500}
+                                                                                                                                                      .admin-attention small{
+                                                                                                                                                        font-size:10px;
+                                                                                                                                                        color:var(--muted)}
+                                                                                                                                                        .admin-table-scroll{
+                                                                                                                                                          overflow:auto;
+                                                                                                                                                          max-width:100%}
+                                                                                                                                                          .admin-table{
+                                                                                                                                                            border-collapse:collapse;
+                                                                                                                                                            width:100%;
+                                                                                                                                                            font-size:12px;
+                                                                                                                                                            text-align:left;
+                                                                                                                                                            min-width:510px}
+                                                                                                                                                            .admin-table th{
+                                                                                                                                                              color:var(--muted);
+                                                                                                                                                              font-weight:400;
+                                                                                                                                                              font-size:10px;
+                                                                                                                                                              padding:14px 8px;
+                                                                                                                                                              border-bottom:1px solid var(--line);
+                                                                                                                                                              white-space:nowrap}
+                                                                                                                                                              .admin-table td{
+                                                                                                                                                                padding:18px 8px;
+                                                                                                                                                                border-bottom:1px solid var(--line);
+                                                                                                                                                                vertical-align:middle}
+                                                                                                                                                                .admin-table tr:last-child td{
+                                                                                                                                                                  border-bottom:0}
+                                                                                                                                                                  .admin-table td a{
+                                                                                                                                                                    color:var(--ink);
+                                                                                                                                                                    text-decoration:none;
+                                                                                                                                                                    font-weight:500}
+                                                                                                                                                                    .admin-table td a:hover{
+                                                                                                                                                                      text-decoration:underline}
+                                                                                                                                                                      .admin-text-button{
+                                                                                                                                                                        background:transparent!important;
+                                                                                                                                                                        border:0!important;
+                                                                                                                                                                        padding:0!important;
+                                                                                                                                                                        text-align:left;
+                                                                                                                                                                        font-size:12px;
+                                                                                                                                                                        font-weight:500}
+                                                                                                                                                                        .admin-empty{
+                                                                                                                                                                          padding:25px 4px;
+                                                                                                                                                                          color:var(--muted);
+                                                                                                                                                                          font-size:12px}
+                                                                                                                                                                          .admin-filter{
+                                                                                                                                                                            max-width:380px;
+                                                                                                                                                                            margin-bottom:14px}
+                                                                                                                                                                            .admin-toolbar{
+                                                                                                                                                                              display:flex;
+                                                                                                                                                                              gap:12px;
+                                                                                                                                                                              margin-bottom:12px}
+                                                                                                                                                                              .admin-toolbar input{
+                                                                                                                                                                                flex:1}
+                                                                                                                                                                                .admin-toolbar select{
+                                                                                                                                                                                  max-width:220px}
+                                                                                                                                                                                  .admin-tabs{
+                                                                                                                                                                                    display:flex;
+                                                                                                                                                                                    gap:10px}
+                                                                                                                                                                                    .admin-tabs a{
+                                                                                                                                                                                      padding:12px 20px;
+                                                                                                                                                                                      border-radius:10px;
+                                                                                                                                                                                      text-decoration:none;
+                                                                                                                                                                                      color:var(--ink);
+                                                                                                                                                                                      background:white;
+                                                                                                                                                                                      border:1px solid var(--line)}
+                                                                                                                                                                                      .admin-settings-facts{
+                                                                                                                                                                                        display:flex;
+                                                                                                                                                                                        flex-wrap:wrap;
+                                                                                                                                                                                        gap:16px;
+                                                                                                                                                                                        background:white;
+                                                                                                                                                                                        padding:20px;
+                                                                                                                                                                                        border-radius:20px;
+                                                                                                                                                                                        font-size:11px;
+                                                                                                                                                                                        color:var(--muted)}
+                                                                                                                                                                                        .admin-settings-facts strong{
+                                                                                                                                                                                          display:block;
+                                                                                                                                                                                          font-size:13px;
+                                                                                                                                                                                          color:var(--ink)}
+                                                                                                                                                                                          .admin-settings-facts>span{
+                                                                                                                                                                                            flex:1;
+                                                                                                                                                                                            min-width:130px}
+                                                                                                                                                                                            .admin-search-result{
+                                                                                                                                                                                              display:flex;
+                                                                                                                                                                                              justify-content:space-between;
+                                                                                                                                                                                              gap:20px;
+                                                                                                                                                                                              padding:16px 0;
+                                                                                                                                                                                              border-bottom:1px solid var(--line);
+                                                                                                                                                                                              text-decoration:none;
+                                                                                                                                                                                              color:var(--ink)}
+                                                                                                                                                                                              .admin-search-result small{
+                                                                                                                                                                                                color:var(--muted)}
+                                                                                                                                                                                                .admin-data-footer{
+                                                                                                                                                                                                  font-size:10px;
+                                                                                                                                                                                                  color:var(--muted);
+                                                                                                                                                                                                  margin-top:24px}
+                                                                                                                                                                                                  .admin-error{
+                                                                                                                                                                                                    background:#fff0e8;
+                                                                                                                                                                                                    border-radius:12px;
+                                                                                                                                                                                                    padding:15px;
+                                                                                                                                                                                                    color:#763b2d;
+                                                                                                                                                                                                    margin-bottom:16px}
+                                                                                                                                                                                                    .admin-error small{
+                                                                                                                                                                                                      display:block;
+                                                                                                                                                                                                      margin-top:8px}
+                                                                                                                                                                                                      .admin-error button{
+                                                                                                                                                                                                        background:white;
+                                                                                                                                                                                                        border:1px solid #e9d9d3;
+                                                                                                                                                                                                        padding:6px 12px;
+                                                                                                                                                                                                        border-radius:8px;
+                                                                                                                                                                                                        margin-left:10px}
+                                                                                                                                                                                                        .admin-mobile-toggle{
+                                                                                                                                                                                                          display:none}
+                                                                                                                                                                                                          .admin-content main{
+                                                                                                                                                                                                            max-width:none;
+                                                                                                                                                                                                            width:100%;
+                                                                                                                                                                                                            padding:0;
+                                                                                                                                                                                                            margin:0;
+                                                                                                                                                                                                            background:transparent}
+                                                                                                                                                                                                            .admin-content .card,.admin-content .invoice-paper{
+                                                                                                                                                                                                              border:1px solid var(--line);
+                                                                                                                                                                                                              border-radius:16px;
+                                                                                                                                                                                                              box-shadow:none;
+                                                                                                                                                                                                              padding:22px}
+                                                                                                                                                                                                              .admin-content .form{
+                                                                                                                                                                                                                max-width:900px;
+                                                                                                                                                                                                                gap:18px}
+                                                                                                                                                                                                                .admin-content input,.admin-content select,.admin-content textarea{
+                                                                                                                                                                                                                  border:1px solid var(--line);
+                                                                                                                                                                                                                  background:#f5f7f9;
+                                                                                                                                                                                                                  border-radius:12px;
+                                                                                                                                                                                                                  min-height:44px;
+                                                                                                                                                                                                                  padding:12px 14px;
+                                                                                                                                                                                                                  font-size:12px;
+                                                                                                                                                                                                                  width:100%}
+                                                                                                                                                                                                                  .admin-content input[type=checkbox]{
+                                                                                                                                                                                                                    width:18px;
+                                                                                                                                                                                                                    min-height:18px;
+                                                                                                                                                                                                                    display:inline-block}
+                                                                                                                                                                                                                    .admin-content label{
+                                                                                                                                                                                                                      font-size:11px;
+                                                                                                                                                                                                                      color:var(--muted);
+                                                                                                                                                                                                                      font-weight:500;
+                                                                                                                                                                                                                      display:grid;
+                                                                                                                                                                                                                      gap:8px}
+                                                                                                                                                                                                                      .admin-content button{
+                                                                                                                                                                                                                        border:1px solid var(--line);
+                                                                                                                                                                                                                        background:white;
+                                                                                                                                                                                                                        border-radius:12px;
+                                                                                                                                                                                                                        padding:11px 18px;
+                                                                                                                                                                                                                        font-size:12px;
+                                                                                                                                                                                                                        min-height:44px}
+                                                                                                                                                                                                                        .admin-content button.primary{
+                                                                                                                                                                                                                          background:var(--lime);
+                                                                                                                                                                                                                          border-color:var(--lime);
+                                                                                                                                                                                                                          color:var(--ink)}
+                                                                                                                                                                                                                          .admin-content .metrics{
+                                                                                                                                                                                                                            gap:16px}
+                                                                                                                                                                                                                            .admin-content .metrics>div{
+                                                                                                                                                                                                                              border:0;
+                                                                                                                                                                                                                              border-radius:16px;
+                                                                                                                                                                                                                              background:white}
+                                                                                                                                                                                                                              .admin-content .metrics dd{
+                                                                                                                                                                                                                                font-size:24px}
+                                                                                                                                                                                                                                .admin-content .list{
+                                                                                                                                                                                                                                  padding:0}
+                                                                                                                                                                                                                                  .admin-content .list>li{
+                                                                                                                                                                                                                                    list-style:none;
+                                                                                                                                                                                                                                    border:0;
+                                                                                                                                                                                                                                    border-bottom:1px solid var(--line);
+                                                                                                                                                                                                                                    border-radius:0;
+                                                                                                                                                                                                                                    padding:14px 0;
+                                                                                                                                                                                                                                    background:white}
+                                                                                                                                                                                                                                    .admin-content .list a{
+                                                                                                                                                                                                                                      color:var(--ink);
+                                                                                                                                                                                                                                      text-decoration:none}
+                                                                                                                                                                                                                                      .admin-content .admin-module>ul{
+                                                                                                                                                                                                                                        padding-left:0;
+                                                                                                                                                                                                                                        list-style:none;
+                                                                                                                                                                                                                                        display:grid;
+                                                                                                                                                                                                                                        gap:8px}
+                                                                                                                                                                                                                                        .admin-content .admin-module>ul>li{
+                                                                                                                                                                                                                                          border-bottom:1px solid var(--line);
+                                                                                                                                                                                                                                          padding:14px}
+                                                                                                                                                                                                                                          .admin-content h2{
+                                                                                                                                                                                                                                            font-size:18px}
+                                                                                                                                                                                                                                            .admin-content .admin-module{
+                                                                                                                                                                                                                                              background:white;
+                                                                                                                                                                                                                                              border-radius:20px;
+                                                                                                                                                                                                                                              padding:24px}
+                                                                                                                                                                                                                                              .admin-content fieldset{
+                                                                                                                                                                                                                                                border:1px solid var(--line);
+                                                                                                                                                                                                                                                border-radius:16px;
+                                                                                                                                                                                                                                                padding:18px}
+                                                                                                                                                                                                                                                .admin-content pre{
+                                                                                                                                                                                                                                                  max-height:360px;
+                                                                                                                                                                                                                                                  overflow:auto}
+                                                                                                                                                                                                                                                  .admin-content .profile-links{
+                                                                                                                                                                                                                                                    display:grid}
+                                                                                                                                                                                                                                                    .admin-content .link{
+                                                                                                                                                                                                                                                      color:var(--ink)}
+                                                                                                                                                                                                                                                      .admin-workspace.is-collapsed{
+                                                                                                                                                                                                                                                        grid-template-columns:96px minmax(0,1fr)}
+                                                                                                                                                                                                                                                        .is-collapsed .admin-sidebar{
+                                                                                                                                                                                                                                                          padding:24px 10px}
+                                                                                                                                                                                                                                                          .is-collapsed .admin-sidebar-brand{
+                                                                                                                                                                                                                                                            padding:0;
+                                                                                                                                                                                                                                                            flex-direction:column}
+                                                                                                                                                                                                                                                            .is-collapsed .admin-sidebar-brand>a{
+                                                                                                                                                                                                                                                              font-size:32px}
+                                                                                                                                                                                                                                                              .is-collapsed .admin-sidebar-brand button{
+                                                                                                                                                                                                                                                                transform:rotate(180deg)}
+                                                                                                                                                                                                                                                                .is-collapsed .admin-sidebar nav a{
+                                                                                                                                                                                                                                                                  padding:13px;
+                                                                                                                                                                                                                                                                  justify-content:center}
+                                                                                                                                                                                                                                                                  .is-collapsed .admin-sidebar nav a>span,.is-collapsed .admin-workspace-label,.is-collapsed .admin-sidebar-note,.is-collapsed .admin-sidebar-owner>span:last-child,.is-collapsed .admin-field-link{
+                                                                                                                                                                                                                                                                    display:none}
+                                                                                                                                                                                                                                                                    .is-collapsed .admin-sidebar nav{
+                                                                                                                                                                                                                                                                      margin-top:20px}
+                                                                                                                                                                                                                                                                      .is-collapsed .admin-sidebar-owner{
+                                                                                                                                                                                                                                                                        justify-content:center;
+                                                                                                                                                                                                                                                                        padding-top:18px}
+                                                                                                                                                                                                                                                                        @media(min-width:1500px){
+                                                                                                                                                                                                                                                                          .admin-main{
+                                                                                                                                                                                                                                                                            padding:30px 40px}
+                                                                                                                                                                                                                                                                            .admin-grid{
+                                                                                                                                                                                                                                                                              grid-template-columns:minmax(0,2fr) minmax(320px,1fr)}
+                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                            @media(max-width:1150px){
+                                                                                                                                                                                                                                                                              .admin-workspace{
+                                                                                                                                                                                                                                                                                grid-template-columns:215px minmax(0,1fr)}
+                                                                                                                                                                                                                                                                                .admin-sidebar{
+                                                                                                                                                                                                                                                                                  padding:20px 10px}
+                                                                                                                                                                                                                                                                                  .admin-main{
+                                                                                                                                                                                                                                                                                    padding:24px}
+                                                                                                                                                                                                                                                                                    .admin-grid{
+                                                                                                                                                                                                                                                                                      grid-template-columns:1fr}
+                                                                                                                                                                                                                                                                                      .admin-metrics.four{
+                                                                                                                                                                                                                                                                                        grid-template-columns:repeat(2,minmax(0,1fr))}
+                                                                                                                                                                                                                                                                                        .admin-topbar-actions{
+                                                                                                                                                                                                                                                                                          gap:9px}
+                                                                                                                                                                                                                                                                                          .admin-today{
+                                                                                                                                                                                                                                                                                            display:none}
+                                                                                                                                                                                                                                                                                            .admin-notification{
+                                                                                                                                                                                                                                                                                              display:none}
+                                                                                                                                                                                                                                                                                              .admin-topbar{
+                                                                                                                                                                                                                                                                                                gap:10px}
+                                                                                                                                                                                                                                                                                                .admin-search{
+                                                                                                                                                                                                                                                                                                  max-width:none}
+                                                                                                                                                                                                                                                                                                  .admin-big-number{
+                                                                                                                                                                                                                                                                                                    margin-top:8px}
+                                                                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                                                                                  @media(max-width:760px){
+                                                                                                                                                                                                                                                                                                    .admin-workspace,.admin-workspace.is-collapsed{
+                                                                                                                                                                                                                                                                                                      display:block}
+                                                                                                                                                                                                                                                                                                      .admin-sidebar{
+                                                                                                                                                                                                                                                                                                        position:fixed;
+                                                                                                                                                                                                                                                                                                        left:0;
+                                                                                                                                                                                                                                                                                                        top:0;
+                                                                                                                                                                                                                                                                                                        width:236px;
+                                                                                                                                                                                                                                                                                                        margin:0;
+                                                                                                                                                                                                                                                                                                        height:100dvh;
+                                                                                                                                                                                                                                                                                                        min-height:0;
+                                                                                                                                                                                                                                                                                                        border-radius:0 20px 20px 0;
+                                                                                                                                                                                                                                                                                                        transform:translateX(-110%);
+                                                                                                                                                                                                                                                                                                        transition:transform .18s ease}
+                                                                                                                                                                                                                                                                                                        .admin-workspace.mobile-open .admin-sidebar{
+                                                                                                                                                                                                                                                                                                          transform:translateX(0);
+                                                                                                                                                                                                                                                                                                          box-shadow:0 0 0 100vmax #13223855}
+                                                                                                                                                                                                                                                                                                          .admin-main{
+                                                                                                                                                                                                                                                                                                            padding:18px 16px}
+                                                                                                                                                                                                                                                                                                            .admin-breadcrumb{
+                                                                                                                                                                                                                                                                                                              font-size:10px;
+                                                                                                                                                                                                                                                                                                              margin-bottom:10px}
+                                                                                                                                                                                                                                                                                                              .admin-topbar{
+                                                                                                                                                                                                                                                                                                                margin-bottom:24px;
+                                                                                                                                                                                                                                                                                                                flex-wrap:wrap}
+                                                                                                                                                                                                                                                                                                                .admin-mobile-toggle{
+                                                                                                                                                                                                                                                                                                                  display:flex;
+                                                                                                                                                                                                                                                                                                                  align-items:center;
+                                                                                                                                                                                                                                                                                                                  justify-content:center;
+                                                                                                                                                                                                                                                                                                                  min-width:42px;
+                                                                                                                                                                                                                                                                                                                  height:44px;
+                                                                                                                                                                                                                                                                                                                  background:white;
+                                                                                                                                                                                                                                                                                                                  border:1px solid var(--line);
+                                                                                                                                                                                                                                                                                                                  border-radius:12px}
+                                                                                                                                                                                                                                                                                                                  .admin-search{
+                                                                                                                                                                                                                                                                                                                    order:3;
+                                                                                                                                                                                                                                                                                                                    flex-basis:100%;
+                                                                                                                                                                                                                                                                                                                    max-width:none}
+                                                                                                                                                                                                                                                                                                                    .admin-topbar-actions{
+                                                                                                                                                                                                                                                                                                                      flex:1;
+                                                                                                                                                                                                                                                                                                                      justify-content:end}
+                                                                                                                                                                                                                                                                                                                      .admin-topbar-actions select{
+                                                                                                                                                                                                                                                                                                                        max-width:145px}
+                                                                                                                                                                                                                                                                                                                        .admin-page-heading h1{
+                                                                                                                                                                                                                                                                                                                          font-size:24px}
+                                                                                                                                                                                                                                                                                                                          .admin-page-heading p{
+                                                                                                                                                                                                                                                                                                                            font-size:11px}
+                                                                                                                                                                                                                                                                                                                            .admin-page-heading{
+                                                                                                                                                                                                                                                                                                                              align-items:start;
+                                                                                                                                                                                                                                                                                                                              flex-wrap:wrap;
+                                                                                                                                                                                                                                                                                                                              margin-bottom:20px}
+                                                                                                                                                                                                                                                                                                                              .admin-panel{
+                                                                                                                                                                                                                                                                                                                                padding:18px;
+                                                                                                                                                                                                                                                                                                                                border-radius:18px}
+                                                                                                                                                                                                                                                                                                                                .admin-panel-heading{
+                                                                                                                                                                                                                                                                                                                                  flex-wrap:wrap}
+                                                                                                                                                                                                                                                                                                                                  .admin-metrics,.admin-metrics.four{
+                                                                                                                                                                                                                                                                                                                                    grid-template-columns:repeat(2,minmax(0,1fr));
+                                                                                                                                                                                                                                                                                                                                    gap:10px}
+                                                                                                                                                                                                                                                                                                                                    .admin-metric{
+                                                                                                                                                                                                                                                                                                                                      padding:15px;
+                                                                                                                                                                                                                                                                                                                                      min-height:125px;
+                                                                                                                                                                                                                                                                                                                                      border-radius:16px}
+                                                                                                                                                                                                                                                                                                                                      .admin-metric strong{
+                                                                                                                                                                                                                                                                                                                                        font-size:23px}
+                                                                                                                                                                                                                                                                                                                                        .admin-metric>span{
+                                                                                                                                                                                                                                                                                                                                          font-size:10px}
+                                                                                                                                                                                                                                                                                                                                          .admin-metric small{
+                                                                                                                                                                                                                                                                                                                                            font-size:9px}
+                                                                                                                                                                                                                                                                                                                                            .admin-grid{
+                                                                                                                                                                                                                                                                                                                                              gap:14px}
+                                                                                                                                                                                                                                                                                                                                              .admin-content{
+                                                                                                                                                                                                                                                                                                                                                gap:14px}
+                                                                                                                                                                                                                                                                                                                                                .admin-toolbar{
+                                                                                                                                                                                                                                                                                                                                                  flex-wrap:wrap}
+                                                                                                                                                                                                                                                                                                                                                  .admin-toolbar input,.admin-toolbar select{
+                                                                                                                                                                                                                                                                                                                                                    width:100%;
+                                                                                                                                                                                                                                                                                                                                                    max-width:none}
+                                                                                                                                                                                                                                                                                                                                                    .admin-data-footer{
+                                                                                                                                                                                                                                                                                                                                                      font-size:9px}
+                                                                                                                                                                                                                                                                                                                                                      .admin-content .admin-module{
+                                                                                                                                                                                                                                                                                                                                                        padding:18px}
+                                                                                                                                                                                                                                                                                                                                                        .admin-primary,.admin-secondary{
+                                                                                                                                                                                                                                                                                                                                                          font-size:11px;
+                                                                                                                                                                                                                                                                                                                                                          padding:10px 15px}
+                                                                                                                                                                                                                                                                                                                                                          .admin-sidebar nav a>span{
+                                                                                                                                                                                                                                                                                                                                                            display:block!important}
+                                                                                                                                                                                                                                                                                                                                                            .is-collapsed .admin-sidebar nav a{
+                                                                                                                                                                                                                                                                                                                                                              justify-content:start}
+                                                                                                                                                                                                                                                                                                                                                              .is-collapsed .admin-sidebar-brand{
+                                                                                                                                                                                                                                                                                                                                                                flex-direction:row}
+                                                                                                                                                                                                                                                                                                                                                                .is-collapsed .admin-sidebar-brand>a{
+                                                                                                                                                                                                                                                                                                                                                                  font-size:36px}
+                                                                                                                                                                                                                                                                                                                                                                  .is-collapsed .admin-sidebar-owner>span:last-child{
+                                                                                                                                                                                                                                                                                                                                                                    display:block}
+                                                                                                                                                                                                                                                                                                                                                                    .is-collapsed .admin-sidebar-owner{
+                                                                                                                                                                                                                                                                                                                                                                      justify-content:start}
+                                                                                                                                                                                                                                                                                                                                                                      .is-collapsed .admin-field-link{
+                                                                                                                                                                                                                                                                                                                                                                        display:block}
+                                                                                                                                                                                                                                                                                                                                                                      }
+                                                                                                                                                                                                                                                                                                                                                                      @media(prefers-reduced-motion:reduce){
+                                                                                                                                                                                                                                                                                                                                                                        .admin-sidebar{
+                                                                                                                                                                                                                                                                                                                                                                          transition:none}
+                                                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                                                        @media(max-height:850px){
+                                                                                                                                                                                                                                                                                                                                                                          .admin-sidebar-note{
+                                                                                                                                                                                                                                                                                                                                                                            display:none}
+                                                                                                                                                                                                                                                                                                                                                                            .admin-sidebar-footer{
+                                                                                                                                                                                                                                                                                                                                                                              padding-top:16px}
+                                                                                                                                                                                                                                                                                                                                                                              .admin-workspace-label{
+                                                                                                                                                                                                                                                                                                                                                                                margin-bottom:18px}
+                                                                                                                                                                                                                                                                                                                                                                                .admin-sidebar nav{
+                                                                                                                                                                                                                                                                                                                                                                                  gap:4px}
+                                                                                                                                                                                                                                                                                                                                                                                  .admin-sidebar-owner{
+                                                                                                                                                                                                                                                                                                                                                                                    margin-top:8px;
+                                                                                                                                                                                                                                                                                                                                                                                    padding-top:12px}
+                                                                                                                                                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                                                                                                                                                                  .admin-content input,.admin-content select,.admin-content textarea{
+                                                                                                                                                                                                                                                                                                                                                                                    min-width:0;
+                                                                                                                                                                                                                                                                                                                                                                                    max-width:100%}
+                                                                                                                                                                                                                                                                                                                                                                                    @media(max-width:760px){
+                                                                                                                                                                                                                                                                                                                                                                                      .admin-sidebar{
+                                                                                                                                                                                                                                                                                                                                                                                        visibility:hidden;
+                                                                                                                                                                                                                                                                                                                                                                                        pointer-events:none}
+                                                                                                                                                                                                                                                                                                                                                                                        .admin-workspace.mobile-open .admin-sidebar{
+                                                                                                                                                                                                                                                                                                                                                                                          visibility:visible;
+                                                                                                                                                                                                                                                                                                                                                                                          pointer-events:auto}
+                                                                                                                                                                                                                                                                                                                                                                                          .admin-content input,.admin-content select,.admin-content textarea,.admin-search input{
+                                                                                                                                                                                                                                                                                                                                                                                            font-size:16px}
+                                                                                                                                                                                                                                                                                                                                                                                          }

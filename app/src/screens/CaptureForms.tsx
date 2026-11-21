@@ -9,7 +9,7 @@ import { cacheCaptureReference } from '../lib/capture-reference'
 import { useRef } from 'react'
 import { liveQuery } from 'dexie'
 
-export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () => void }) {
+export function ClientEdit({ retail, onSaved, hideHeading=false }: { retail: Outlet; onSaved: () => void; hideHeading?:boolean }) {
   const [optionalContact, setOptionalContact] = useState(Boolean(retail.staff_name || retail.staff_phone))
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -35,9 +35,9 @@ export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () =>
     finally { setBusy(false) }
   }
   return <form className="form" onSubmit={event => void save(event)} key={retail.updated_at}>
-    <h2>Client profile</h2>
+    {!hideHeading&&<h2>Client profile</h2>}
     {(['retail_name', 'owner_name', 'owner_phone', 'province', 'area', 'outlet_type', 'address'] as const).map(key =>
-      <label key={key}>{key.replaceAll('_', ' ')}<input name={key} defaultValue={retail[key] ?? ''} required={['retail_name', 'province', 'area', 'outlet_type'].includes(key)} /></label>)}
+      <label key={key}>{key.replaceAll('_', ' ').replace(/^./,letter=>letter.toUpperCase())}<input name={key} defaultValue={retail[key] ?? ''} required={['retail_name', 'province', 'area', 'outlet_type'].includes(key)} /></label>)}
     <button type="button" className="link optional-contact" aria-expanded={optionalContact} aria-controls="edit-staff-contact" onClick={() => setOptionalContact(value => !value)}>{optionalContact ? 'Hide optional contact' : '+ Optional contact'}</button>
     <div id="edit-staff-contact" className="form" hidden={!optionalContact}>
       <label>Staff name<input name="staff_name" defaultValue={retail.staff_name ?? ''} /></label>
