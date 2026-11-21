@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { MobileIcon } from './MobileIcon'
 import { supabase } from '../lib/supabase'
 import { en as t } from '../i18n/en'
 
@@ -44,7 +45,8 @@ export function Login() {
 
   if (mode === 'forgot') {
     return (
-      <main>
+      <main className="auth-sheet recovery-sheet">
+        <img className="recovery-art" src="/mobile-assets/lock3d.webp" alt="" width="140" height="140" />
         <h1>{t.login.forgotTitle}</h1>
         <p className="muted">{t.login.forgotHelp}</p>
         <form onSubmit={sendLink} className="form">
@@ -61,8 +63,9 @@ export function Login() {
   }
 
   return (
-    <main>
-      <h1>{t.login.title}</h1>
+    <main className="login-layout">
+      <section className="login-hero"><span className="login-brand">Shakarchi</span><h1>Your business,<br />in good hands.</h1><p>A little clarity. A lot of possibility.</p><img src="/mobile-assets/file.webp" alt="" width="112" height="112" /></section>
+      <section className="auth-sheet"><h2>Welcome back</h2><p className="muted">Sign in to your owner account.</p>
       {!supabase && <p className="error">{t.notConnected}</p>}
       <form onSubmit={signIn} className="form">
         <label>{t.login.email}
@@ -75,6 +78,7 @@ export function Login() {
         <button className="primary" disabled={busy || !supabase}>{t.login.submit}</button>
         <button type="button" className="link" onClick={() => switchTo('forgot')}>{t.login.forgot}</button>
       </form>
+      <p className="account-trust"><MobileIcon name="lock" size={16} />Your account, securely connected.</p></section>
     </main>
   )
 }

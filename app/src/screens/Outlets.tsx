@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { db } from '../lib/db'
 import type { Outlet } from '../lib/types'
+import { MobileIcon } from './MobileIcon'
 import { StoreNavigation } from './StoreNavigation'
 import { en as t } from '../i18n/en'
 
@@ -25,18 +26,20 @@ export function Outlets({ version }: { version: number }) {
     <main>
       <div className="row">
         <h1>Retails</h1>
-        <Link className="button primary" to="/outlets/new">+ New retail</Link>
+        <Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link>
       </div>
-      <input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} />
+      <label className="mobile-search"><MobileIcon name="search" size={21} /><input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} /></label>
+      <p className="client-count">{shown.length} {shown.length === 1 ? 'client' : 'clients'}</p>
       {outlets.length === 0 ? (
-        <div className="empty"><img src="/wireframe/retails.svg" alt="" /><h2>Your retail list starts here</h2><p>Add your first client to take orders and collect market data.</p></div>
+        <div className="empty"><img src="/mobile-assets/shop.svg" alt="" /><h2>Your client list starts here</h2><p>Add your first client to take orders and collect market data.</p></div>
       ) : shown.length === 0 ? (
         <p className="muted">{t.noMatch}</p>
       ) : (
         <ul className="list">
           {shown.map((o) => (
             <li key={o.id} className="retail-row">
-              <Link to={`/retails/${o.id}`}>
+              <Link to={`/retails/${o.id}`} className="client-identity">
+                <span className="client-avatar" aria-hidden="true">{o.retail_name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('')}</span>
                 <span>
                   <strong>{o.retail_name}</strong>
                   <br />

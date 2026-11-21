@@ -23,7 +23,8 @@ export function NewPassword({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <main>
+    <main className="auth-sheet recovery-sheet">
+      <img className="recovery-art" src="/mobile-assets/lock3d.webp" alt="" width="140" height="140" />
       <h1>{t.login.newTitle}</h1>
       <form onSubmit={submit} className="form">
         <label>{t.login.newPassword}
