@@ -241,6 +241,7 @@ export function OwnerAdmin() {
 
   return <main>
     <h1>Admin hub</h1>
+    <Link className="card card-link" to="/admin/areas">Service areas <span aria-hidden="true">→</span></Link>
     <Link className="card card-link" to="/admin/clients">Clients <span aria-hidden="true">→</span></Link>
     <label className="owner-section">Section
       <select value={tab} onChange={event => { setTab(event.target.value); setError(''); setNotice('') }}>

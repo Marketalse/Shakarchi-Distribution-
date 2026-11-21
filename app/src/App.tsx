@@ -9,6 +9,7 @@ import { NewOutlet } from './screens/NewOutlet'
 import { Dashboard, RetailDetail } from './screens/BasicRetail'
 import { Orders, OwnerProfile } from './screens/OwnerPages'
 import { Visit } from './screens/Visit'
+import { ServiceAreas } from './screens/ServiceAreas'
 import { AdminClients } from './screens/AdminClients'
 import { OwnerAdmin } from './screens/OwnerAdmin'
 import { NewPassword } from './screens/NewPassword'
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard version={sync.version} />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/me" element={<OwnerProfile userId={repId} />} />
+          <Route path="/admin/areas" element={<ServiceAreas />} />
           <Route path="/admin/clients" element={<AdminClients />} />
           <Route path="/admin/clients/:outletId" element={<AdminClients />} />
           <Route path="/admin" element={<OwnerAdmin />} />
