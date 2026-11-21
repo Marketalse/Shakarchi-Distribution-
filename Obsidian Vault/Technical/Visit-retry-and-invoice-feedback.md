@@ -25,3 +25,5 @@ No existing business rows, RLS policies or finance calculations are changed. Ope
 Migration014 is prepared but NOT applied to production. The frontend is not released. Repository AGENTS.md requires review for sync/data-model changes. #59 stays open until that review, migration verification and release. #60 awaits the actual company logo. M3B #10 remains on owner hold.
 
 The owner-positive phone report is recorded for the initial pilot check; exact completion times, all-provider handoff coverage and survey acceptance were not supplied. M4 is not silently closed.
+
+Review: [PR #61](https://github.com/Marketalse/Shakarchi-Distribution-/pull/61).
