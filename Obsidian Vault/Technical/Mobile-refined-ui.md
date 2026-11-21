@@ -22,4 +22,6 @@ USD ledger/transaction calculations unchanged. Owner gate, durable queues, share
 ## Remaining acceptance
 Visual browser/screenshot checks and real iPhone Safari review are NOT completed. Automated test Chrome process 82777 aborted in macOS HIServices application registration before loading the app; the supplied crash report matches that test process. No further browser launch attempted. No production records changed. #41 offline/device gate and #47 native navigation handoff remain open.
 
+Review: [PR #55](https://github.com/Marketalse/Shakarchi-Distribution-/pull/55).
+
 Status: source ready for review; #54 remains open until visual acceptance. Production not updated by this branch yet.
