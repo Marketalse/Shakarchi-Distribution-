@@ -101,9 +101,9 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
       {tab === 'Summary' && <Summary retail={retail} revision={revision} />}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
-      {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
+      {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
     </main>
   )
 }
@@ -120,13 +120,17 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
   return <>
     <dl className="metrics">
       <div><dt>Location</dt><dd>{retail.address || [retail.area, retail.province].join(', ')}</dd></div>
-      <div><dt>Total sales</dt><dd>{data ? money(sum(data.map(x => x.total))) : '—'}</dd></div>
-      <div><dt>Cost of goods · known snapshots</dt><dd>{data?.some(x => x.investment === null)
-        ? 'Cost data incomplete' : data ? money(sum(data.map(x => x.investment ?? 0))) : '—'}</dd></div>
+      <div><dt>↗ Total sales</dt><dd title={data?money(sum(data.map(x=>x.total))):undefined}>{data ? formatUsdSummary(sum(data.map(x => x.total))) : '—'}</dd></div>
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
+    <ClientInvoiceHistory outletId={retail.id} revision={revision}/>
   </>
+}
+
+function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:number}) {
+  const {data,error}=useRows(()=>rows<{id:string;created_at:string;total:string}>('solo_invoice_balances','id,outlet_id,created_at,total',outletId),'client-invoices:'+outletId+':'+revision)
+  return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice '+row.id}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
 function OrderForm({ outletId, visitId, onSaved }: { outletId: string; visitId: string; onSaved: () => void }) {

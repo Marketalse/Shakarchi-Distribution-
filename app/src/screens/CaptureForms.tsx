@@ -36,14 +36,13 @@ export function ClientEdit({ retail, onSaved }: { retail: Outlet; onSaved: () =>
   }
   return <form className="form" onSubmit={event => void save(event)} key={retail.updated_at}>
     <h2>Client profile</h2>
-    {(['retail_name', 'owner_name', 'owner_phone', 'shop_phone', 'province', 'area', 'outlet_type', 'address'] as const).map(key =>
+    {(['retail_name', 'owner_name', 'owner_phone', 'province', 'area', 'outlet_type', 'address'] as const).map(key =>
       <label key={key}>{key.replaceAll('_', ' ')}<input name={key} defaultValue={retail[key] ?? ''} required={['retail_name', 'province', 'area', 'outlet_type'].includes(key)} /></label>)}
     <button type="button" className="link optional-contact" aria-expanded={optionalContact} aria-controls="edit-staff-contact" onClick={() => setOptionalContact(value => !value)}>{optionalContact ? 'Hide optional contact' : '+ Optional contact'}</button>
     <div id="edit-staff-contact" className="form" hidden={!optionalContact}>
       <label>Staff name<input name="staff_name" defaultValue={retail.staff_name ?? ''} /></label>
       <label>Staff phone<input name="staff_phone" type="tel" defaultValue={retail.staff_phone ?? ''} /></label>
     </div>
-    <label>Relationship<select name="relationship" defaultValue={retail.relationship}><option value="prospect">Prospect</option><option value="customer">Customer</option></select></label>
     <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save client'}</button>
     {error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
   </form>

@@ -77,12 +77,6 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
         <label>{t.form.type}
           <select required value={f.outlet_type} onChange={set('outlet_type')}><option value="">Choose outlet type</option>{OUTLET_TYPES.map((x) => <option key={x}>{x}</option>)}</select>
         </label>
-        <label>{t.form.relationship}
-          <select value={f.relationship} onChange={set('relationship')}>
-            <option value="prospect">{t.prospect}</option>
-            <option value="customer">{t.customer}</option>
-          </select>
-        </label>
         <label>{t.form.province}
           <select required value={f.province} onChange={set('province')}><option value="">Choose province</option>{PROVINCES.map((x) => <option key={x}>{x}</option>)}</select>
         </label>
@@ -94,7 +88,6 @@ export function NewOutlet({ repId, onSaved }: { repId: string; onSaved: () => vo
           <label>Staff name<input autoComplete="off" value={f.staff_name} onChange={set('staff_name')} /></label>
           <label>Staff phone<input type="tel" value={f.staff_phone} onChange={set('staff_phone')} /></label>
         </div>}
-        <label>{t.form.shopPhone}<input type="tel" inputMode="tel" value={f.shop_phone} onChange={set('shop_phone')} /></label>
         <label>{t.form.address}<input value={f.address} onChange={set('address')} /></label>
         <div>
           <span className="label">{t.form.gps}</span>
