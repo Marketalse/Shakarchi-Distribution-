@@ -3,7 +3,7 @@ import {Link} from 'react-router-dom'
 import {supabase} from '../lib/supabase'
 import {advisorReason,type AdvisorSnapshot} from '../lib/advisor'
 import {formatUsd} from '../lib/money'
-type Result={snapshot?:AdvisorSnapshot;selected?:string[];ai?:boolean;model?:string;message?:string;error?:string}
+type Result={snapshot?:AdvisorSnapshot;selected?:string[];ai?:boolean;model?:string;message?:string;error?:string;connectionCode?:string}
 export function AdminAdvisor(){
  const [result,setResult]=useState<Result>({}),[busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[online,setOnline]=useState(navigator.onLine),[clock,setClock]=useState(()=>Date.now()),[review,setReview]=useState('')
  const active=useRef<AbortController|null>(null)
@@ -32,7 +32,7 @@ export function AdminAdvisor(){
  <p className="admin-subtle">The connection test uses synthetic records only. AI calls are limited to one per minute per running server instance.</p>
  <label className="advisor-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} disabled={busy}/> Send anonymous urgency categories and balance rankings to OpenAI through Vercel AI Gateway for this request. No customer identities, exact amounts, dates, invoice IDs or notes are sent.</label>
  <button disabled={busy||!online||!consent} onClick={()=>void request('brief')}>{busy?'Checking…':'Generate collection priorities'}</button>
- {result.error&&<p role="alert" className="error">{result.error}</p>}
+ {result.error&&<p role="alert" className="error">{result.error}{result.connectionCode&&<small> Connection code: {result.connectionCode}</small>}</p>}
  {result.message&&<p role="status">{result.message} {result.model&&<small>Model: {result.model}</small>}</p>}
  {result.snapshot&&<>
  <h3>Source evidence · USD</h3>

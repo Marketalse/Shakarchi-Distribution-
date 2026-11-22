@@ -4,6 +4,7 @@ import {getVercelOidcToken} from '@vercel/oidc'
 import {env} from 'node:process'
 import {advisorSignals,advisorSnapshot,validateAdvisorChoice,type AdvisorSource} from '../src/lib/advisor.js'
 import type {SupabaseClient} from '@supabase/supabase-js'
+class AdvisorConnectionError extends Error { code:string; constructor(code:string){super(code);this.code=code} }
 const MODEL='openai/gpt-4.1-mini'
 const headers={'Cache-Control':'no-store, private','Content-Type':'application/json','Vary':'Authorization','X-Content-Type-Options':'nosniff'}
 const reply=(status:number,body:unknown)=>new Response(JSON.stringify(body),{status,headers})
@@ -42,13 +43,20 @@ export const dependencies:AdvisorDependencies={
   return {invoices,cash,reminders,orders,lines}
  },
  async choose(signals){
-  const token=await getVercelOidcToken()
+  let token:string;try{token=await getVercelOidcToken()}catch{throw new AdvisorConnectionError('deployment_identity_unavailable')}
   const response=await fetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({
    model:MODEL,temperature:0,max_tokens:150,
    messages:[{role:'system',content:'Select up to three collection review priorities from these anonymous signals. Prefer overdue, then reminder_due, then upcoming; within a class prefer lower balanceRank (larger outstanding balance). Only return candidate IDs. Do not generate advice, numbers, SQL, messages or tool calls.'},{role:'user',content:JSON.stringify(signals)}],
    response_format:{type:'json_schema',json_schema:{name:'collection_priorities',strict:true,schema:{type:'object',properties:{selected:{type:'array',items:{type:'string'},maxItems:3}},required:['selected'],additionalProperties:false}}}
   })})
-  if(!response.ok)throw Error('AI connection unavailable. Check AI Gateway activation or credits in Vercel; no automatic retry was made.')
+  if(!response.ok){
+   const body=await response.json().catch(()=>({}))
+   const reported=String(body?.error?.code??body?.error?.type??'')
+   const known=['customer_verification_required','insufficient_credits','insufficient_funds','invalid_api_key','model_not_found','rate_limit_exceeded']
+   const code=known.includes(reported)?reported:'gateway_http_'+response.status
+   console.warn('advisor_connection_failure',code)
+   throw new AdvisorConnectionError(code)
+  }
   const result=await response.json()
   if(result.choices?.[0]?.finish_reason!=='stop'||result.choices?.[0]?.message?.tool_calls)throw Error('AI did not return a complete supported answer.')
   return JSON.parse(result.choices[0].message.content)
@@ -79,6 +87,10 @@ export async function handleAdvisor(request:Request,deps:AdvisorDependencies=dep
   try{
    const selected=validateAdvisorChoice(await deps.choose(advisorSignals(snapshot)),snapshot)
    return reply(200,{...(mode==='test'?{}:{snapshot,selected}),ai:true,model:MODEL,message:mode==='test'?'AI connection passed using synthetic records only.':'AI priorities selected from verified sources.'})
-  }catch{return reply(503,{error:'AI is unavailable or returned an unsupported answer. Check AI Gateway activation/credits, then retry manually. No records were changed.',...(mode==='test'?{}:{snapshot}),ai:false})}
+  }catch(error){
+   const code=error instanceof AdvisorConnectionError?error.code:'unsupported_or_unavailable_response'
+   const detail=code==='customer_verification_required'?'Vercel AI Gateway requires account verification.':code==='deployment_identity_unavailable'?'The deployment identity is unavailable.':code==='insufficient_credits'||code==='insufficient_funds'?'AI Gateway has insufficient credits.':'AI is unavailable or returned an unsupported answer.'
+   return reply(503,{error:detail+' Check AI Gateway configuration in Vercel, then retry manually. No records were changed.',connectionCode:code,...(mode==='test'?{}:{snapshot}),ai:false})
+  }
  }catch{return reply(409,{error:'Source or access verification failed. Refresh and reconcile invoice/payment evidence before advice.',ai:false})}
 }
