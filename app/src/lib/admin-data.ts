@@ -1,3 +1,4 @@
+import {reportingWindow,inReportingWindow,type RecordedVisit} from './operational-report';
 import type { SalesLine } from './catalog-report';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { baghdadDay, currentReport, type Balance, type CashEntry, type Reminder } from './reporting';
@@ -60,6 +61,7 @@ export type AdminData = {
     kind: string;
     price: string | null;
   }[];
+  visits?: RecordedVisit[];
   invoiceLines?: SalesLine[];
   loadedAt: string;
 };
@@ -76,10 +78,10 @@ export async function adminRows<T>(client: SupabaseClient, table: string, column
   }
 }
 export async function loadAdminData(client: SupabaseClient): Promise<AdminData> {
-  const [clients, invoices, cash, reminders, products, surveys, runs, observations] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,selling_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price')]);
+  const [clients, invoices, cash, reminders, products, surveys, runs, observations,visits,invoiceLines] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,selling_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price'),adminRows<RecordedVisit>(client,'visits','id,outlet_id,checked_in_at,checked_out_at'),adminRows<SalesLine>(client,'order_lines','id,order_id,line_total,product_snapshot')]);
   currentReport(invoices, cash, reminders, new Date());
-  const invoiceLines=await adminRows<SalesLine>(client, 'order_lines', 'id,order_id,line_total,product_snapshot');
   return {
+    visits,
     invoiceLines,
     clients,
     invoices,
@@ -95,12 +97,8 @@ export async function loadAdminData(client: SupabaseClient): Promise<AdminData> 
 export type AdminPeriod = 'today' | 'week' | 'month' | 'all';
 const shiftDay = (day: string, offset: number) => new Date(Date.parse(day + 'T12:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
 export function adminSummary(data: Pick<AdminData, 'clients' | 'invoices' | 'cash' | 'reminders'>, period: AdminPeriod, at: Date) {
-  const today = baghdadDay(at),
-    start = period === 'today' ? today : period === 'week' ? shiftDay(today, -6) : period === 'month' ? today.slice(0, 7) + '-01' : undefined;
-  const inPeriod = (value: string) => {
-    const day = baghdadDay(new Date(value));
-    return (!start || day >= start) && day <= today;
-  };
+  const range=reportingWindow(period,at),{today,start}=range
+  const inPeriod=(value:string)=>inReportingWindow(value,range)
   const invoices = data.invoices.filter(i => inPeriod(i.created_at)),
     cash = data.cash.filter(i => inPeriod(i.collected_at));
   const report = currentReport(data.invoices, data.cash, data.reminders, at);
