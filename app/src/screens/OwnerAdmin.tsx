@@ -1,7 +1,7 @@
 import {liveQuery} from 'dexie'
 import {db} from '../lib/db'
 import {offlineOwner} from '../lib/offline'
-import {archiveRejectedRate,inspectPendingRate,manualRateRequest,type RatePendingState} from '../lib/rate-pending'
+import {archiveRejectedRate,inspectPendingRate,manualRateRequest,clearMatchingRatePointer,type RatePendingState} from '../lib/rate-pending'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { openSharedVisit } from '../lib/shared-visit'
@@ -71,7 +71,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
         setRateState(state)
         if(state==='acknowledged'){
           pending.current=null;setPendingView(null)
-          localStorage.removeItem('wsd-owner-pending-operation');sessionStorage.removeItem('wsd-owner-pending-operation')
+          clearMatchingRatePointer(localStorage,item.command.id);clearMatchingRatePointer(sessionStorage,item.command.id)
           setError('');setNotice('Exchange rate saved');setRevision(v=>v+1);onChanged?.()
         }
       },
@@ -87,7 +87,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
     try{
       await archiveRejectedRate(db,await offlineOwner(db),item.command)
       pending.current=null;setPendingView(null);setRateState('pending')
-      localStorage.removeItem('wsd-owner-pending-operation');sessionStorage.removeItem('wsd-owner-pending-operation')
+      clearMatchingRatePointer(localStorage,item.command.id);clearMatchingRatePointer(sessionStorage,item.command.id)
       setError('');setNotice('Rejected request retained for review. Correct the rate and choose a future expiry, then Save.')
     }catch(failure){setError((failure as Error).message)}finally{setBusy(false)}
   }
