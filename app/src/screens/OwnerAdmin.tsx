@@ -295,11 +295,9 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
         <p>Recorded {date(latestRate.rate_timestamp)} · Expires {date(latestRate.valid_until)}</p>
       </section>}
       <form {...formProps} data-kind="fx-rate">
-        <fieldset disabled={busy||Boolean(pendingView)} style={{border:0,padding:0,margin:0,minWidth:0}}>
-        <label>IQD per $1<input name="exchange_rate_used" type="number" min="0.00000001" step="0.00000001" required /></label>
-        <label>Valid until · Baghdad time<input name="valid_until" type="datetime-local" required /></label>
-        {submitButton}
-        </fieldset>
+        <label>IQD per $1<input disabled={busy||Boolean(pendingView)} name="exchange_rate_used" type="number" min="0.00000001" step="0.00000001" required /></label>
+        <label>Valid until · Baghdad time<input disabled={busy||Boolean(pendingView)} name="valid_until" type="datetime-local" required /></label>
+        <button className="primary" disabled={busy||Boolean(pendingView)}>{busy?'Saving…':'Save'}</button>
       </form>
       <details className="secondary-details"><summary>Rate history</summary>
       <ul>{records('fx_rate_versions').map(row => <li key={row.id}>
