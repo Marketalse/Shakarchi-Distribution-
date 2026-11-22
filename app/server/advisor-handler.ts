@@ -2,7 +2,7 @@
 import {createClient} from '@supabase/supabase-js'
 import {getVercelOidcToken} from '@vercel/oidc'
 import {env} from 'node:process'
-import {advisorSignals,advisorSnapshot,validateAdvisorChoice,type AdvisorSource} from '../src/lib/advisor'
+import {advisorSignals,advisorSnapshot,validateAdvisorChoice,type AdvisorSource} from '../src/lib/advisor.js'
 import type {SupabaseClient} from '@supabase/supabase-js'
 const MODEL='openai/gpt-4.1-mini'
 const headers={'Cache-Control':'no-store, private','Content-Type':'application/json','Vary':'Authorization','X-Content-Type-Options':'nosniff'}

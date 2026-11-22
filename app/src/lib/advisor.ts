@@ -1,6 +1,6 @@
-import type {Balance, CashEntry, Reminder} from './reporting'
-import {baghdadDay, currentReport} from './reporting'
-import {sumUsd, usdCents} from './money'
+import type {Balance, CashEntry, Reminder} from './reporting.js'
+import {baghdadDay, currentReport} from './reporting.js'
+import {sumUsd, usdCents} from './money.js'
 export type AdvisorInvoice = Balance & {created_at:string}
 export type AdvisorSource = {
  invoices:AdvisorInvoice[]; cash:CashEntry[]; reminders:Reminder[];
