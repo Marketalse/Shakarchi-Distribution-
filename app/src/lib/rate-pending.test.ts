@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import {afterEach,expect,it} from 'vitest'
 import {LocalDb} from './db'
 import {sendCommand} from './commands'
-import {archiveRejectedRate,inspectPendingRate,manualRateRequest} from './rate-pending'
+import {archiveRejectedRate,inspectPendingRate,manualRateRequest,clearMatchingRatePointer} from './rate-pending'
 const databases:LocalDb[]=[]
 const create=()=>{const db=new LocalDb('rate-pending-'+crypto.randomUUID());databases.push(db);return db}
 afterEach(async()=>{for(const db of databases.splice(0))await db.delete()})
@@ -59,4 +59,12 @@ it('exact retry after lost response returns the original result without creating
  expect(await inspectPendingRate(db,'owner',item)).toBe('pending')
  expect(await sendCommand(db,'owner','publish_solo_fx_rate',item.id,item.request,remote)).toEqual({rate_version_id:item.id})
  expect(ids).toEqual([item.id,item.id]);expect(await inspectPendingRate(db,'owner',item)).toBe('acknowledged')
+})
+
+it('does not let an older tab acknowledgment clear a newer pending pointer',()=>{
+ let raw=JSON.stringify({command:{id:'new'}})
+ const storage={getItem:()=>raw,removeItem:()=>{raw='null'}}
+ clearMatchingRatePointer(storage,'old');expect(JSON.parse(raw).command.id).toBe('new')
+ clearMatchingRatePointer(storage,'new');expect(raw).toBe('null')
+ raw='broken';clearMatchingRatePointer(storage,'new');expect(raw).toBe('broken')
 })

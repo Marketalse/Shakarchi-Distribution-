@@ -40,3 +40,11 @@ export function manualRateRequest(rate:string,localExpiry:string,now=Date.now())
  if(new Date(date.getTime()+3*3600000).toISOString().slice(0,19)!==match[1]+':'+(match[2]??'00'))throw Error('Choose a valid Baghdad expiry time.')
  return {exchange_rate_used:rate,rate_source:'Manual admin entry',valid_until:date.toISOString()}
 }
+
+/** An acknowledgment in one tab must not remove a newer tab's pending pointer. */
+export function clearMatchingRatePointer(storage:Pick<Storage,'getItem'|'removeItem'>,id:string){
+ try{
+  const value=JSON.parse(storage.getItem('wsd-owner-pending-operation')??'null')
+  if(value?.command?.id===id)storage.removeItem('wsd-owner-pending-operation')
+ }catch{/* Preserve unreadable storage for review. */}
+}
