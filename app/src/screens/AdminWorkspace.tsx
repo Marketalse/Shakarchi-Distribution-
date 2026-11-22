@@ -1,3 +1,4 @@
+import {AdminAdvisor} from './AdminAdvisor';
 import {invoiceGrossProfit, receivablesAging} from '../lib/finance-reports';
 import {watchAdminRefresh} from '../lib/admin-refresh';
 import {operationalReport} from '../lib/operational-report';
@@ -37,6 +38,7 @@ const useWorkspace = () => {
 const date = formatAdminDate;
 const fail = (error: unknown) => error instanceof Error ? error.message : String(error);
 const descriptions: Record<string, [string, string]> = {
+  advisor: ['AI advisor', 'Source-linked collection review for the owner.'],
   overview: ['Overview', 'Your distribution business, at a glance.'],
   clients: ['Clients', 'Manage your retail network and client profiles.'],
   orders: ['Orders & invoices', 'Review invoices and collection balances.'],
@@ -48,7 +50,7 @@ const descriptions: Record<string, [string, string]> = {
   settings: ['Workspace settings', 'Owner profile and manual exchange rates.'],
   search: ['Search', 'Find clients, invoices and product records.']
 };
-const navigation = [['', 'Overview', 'home'], ['clients', 'Clients', 'shop'], ['orders', 'Orders', 'cart'], ['collections', 'Collections', 'wallet'], ['catalog', 'Catalog', 'box'], ['surveys', 'Surveys', 'chart'], ['imports', 'Imports', 'upload'], ['settings', 'Settings', 'settings']];
+const navigation = [['', 'Overview', 'home'], ['clients', 'Clients', 'shop'], ['orders', 'Orders', 'cart'], ['collections', 'Collections', 'wallet'], ['advisor', 'AI advisor', 'chart'], ['catalog', 'Catalog', 'box'], ['surveys', 'Surveys', 'chart'], ['imports', 'Imports', 'upload'], ['settings', 'Settings', 'settings']];
 export function AdminIcon({
   name
 }: {
@@ -759,6 +761,7 @@ export function AdminWorkspace({
 </div>} />
     <Route path="orders" element={<InvoiceRegister />} />
 <Route path="collections" element={<Collections />} />
+<Route path="advisor" element={<AdminAdvisor />} />
 <Route path="catalog" element={<Catalog />} />
 <Route path="catalog/new" element={<ProductEditor />} />
 <Route path="catalog/edit/:productId" element={<ProductEditor />} />

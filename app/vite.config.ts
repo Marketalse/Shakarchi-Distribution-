@@ -10,7 +10,7 @@ export default defineConfig(({mode}) => {
   return {
   plugins: [
     react(),
-    ...(admin ? [{name:'admin-entry', configureServer(server) { server.middlewares.use((req,_res,next) => { if (req.url && !req.url.startsWith('/@') && !req.url.startsWith('/src/') && !req.url.startsWith('/node_modules/') && !req.url.split('?')[0].includes('.')) req.url='/admin.html'; next() }) }, async closeBundle() { await rename(resolve('dist-admin/admin.html'),resolve('dist-admin/index.html')) }} satisfies Plugin] : [VitePWA({
+    ...(admin ? [{name:'admin-entry', configureServer(server) { server.middlewares.use((req,_res,next) => { if (req.url && !req.url.startsWith('/api/') && !req.url.startsWith('/@') && !req.url.startsWith('/src/') && !req.url.startsWith('/node_modules/') && !req.url.split('?')[0].includes('.')) req.url='/admin.html'; next() }) }, async closeBundle() { await rename(resolve('dist-admin/admin.html'),resolve('dist-admin/index.html')) }} satisfies Plugin] : [VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
@@ -26,7 +26,7 @@ export default defineConfig(({mode}) => {
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webp}'], navigateFallback: '/index.html', navigateFallbackDenylist: [/^\/admin(?:\/|$)/] },
+      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webp}'], navigateFallback: '/index.html', navigateFallbackDenylist: [/^\/api(?:\/|$)/,/^\/admin(?:\/|$)/] },
     })]),
   ],
   build: admin ? {outDir:'dist-admin',rollupOptions:{input:resolve('admin.html')}} : undefined,
