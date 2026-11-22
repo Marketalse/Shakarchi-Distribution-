@@ -1,3 +1,7 @@
+import {liveQuery} from 'dexie'
+import {db} from '../lib/db'
+import {offlineOwner} from '../lib/offline'
+import {archiveRejectedRate,inspectPendingRate,manualRateRequest,type RatePendingState} from '../lib/rate-pending'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { openSharedVisit } from '../lib/shared-visit'
@@ -56,6 +60,38 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
     catch { return null }
   })
   const pending = useRef<Pending>(pendingView)
+  const [rateState,setRateState]=useState<RatePendingState>('pending')
+  const ratePending=pendingView?.label==='Parallel market rate'?pendingView:null
+  useEffect(()=>{
+    if(!ratePending)return
+    const item=ratePending
+    const subscription=liveQuery(async()=>inspectPendingRate(db,await offlineOwner(db),item.command)).subscribe({
+      next:state=>{
+        if(pending.current?.command.id!==item.command.id)return
+        setRateState(state)
+        if(state==='acknowledged'){
+          pending.current=null;setPendingView(null)
+          localStorage.removeItem('wsd-owner-pending-operation');sessionStorage.removeItem('wsd-owner-pending-operation')
+          setError('');setNotice('Exchange rate saved');setRevision(v=>v+1);onChanged?.()
+        }
+      },
+      error:failure=>setError(failure instanceof Error?failure.message:String(failure)),
+    })
+    return ()=>subscription.unsubscribe()
+  },[ratePending,onChanged])
+
+  async function correctRejectedRate(){
+    const item=pending.current
+    if(busy||item?.label!=='Parallel market rate')return
+    setBusy(true)
+    try{
+      await archiveRejectedRate(db,await offlineOwner(db),item.command)
+      pending.current=null;setPendingView(null);setRateState('pending')
+      localStorage.removeItem('wsd-owner-pending-operation');sessionStorage.removeItem('wsd-owner-pending-operation')
+      setError('');setNotice('Rejected request retained for review. Correct the rate and choose a future expiry, then Save.')
+    }catch(failure){setError((failure as Error).message)}finally{setBusy(false)}
+  }
+
 
 
 
@@ -143,11 +179,8 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
           break
         }
         case 'fx-rate': {
-          const expires = new Date(get('valid_until') + ':00+03:00')
-          if (!Number.isFinite(expires.getTime())) throw Error('Choose a future Baghdad expiry time.')
-          await perform('Parallel market rate', {
-            exchange_rate_used: get('exchange_rate_used'), rate_source: 'Manual admin entry', valid_until: expires.toISOString(),
-          }, command => api.publishRate(command as Parameters<typeof api.publishRate>[0]))
+          const request=manualRateRequest(get('exchange_rate_used'),get('valid_until'))
+          await perform('Parallel market rate', request, command => api.publishRate(command as Parameters<typeof api.publishRate>[0]))
           break
         }
         case 'brand':
@@ -250,7 +283,9 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
       <button onClick={() => setRevision(value => value + 1)}>Reload</button></>}
     {error && <p className="error" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {pendingView && <p>Submission pending. <button disabled={busy} onClick={retryPending}>Retry submission</button></p>}
+    {pendingView && (ratePending&&rateState==='rejected'
+      ? <p role="status">The rate was rejected and was not saved. <button disabled={busy} onClick={()=>void correctRejectedRate()}>Correct rejected rate</button></p>
+      : <p>Submission pending. Retry checks the original request without changing its details. <button disabled={busy} onClick={retryPending}>Retry submission</button></p>)}
     {!rows.products && !loadError && <p role="status">Loading owner records…</p>}
     {tab === 'Exchange rate' && <>
       <h2>Today's exchange rate</h2>
@@ -260,9 +295,11 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
         <p>Recorded {date(latestRate.rate_timestamp)} · Expires {date(latestRate.valid_until)}</p>
       </section>}
       <form {...formProps} data-kind="fx-rate">
+        <fieldset disabled={busy||Boolean(pendingView)} style={{border:0,padding:0,margin:0,minWidth:0}}>
         <label>IQD per $1<input name="exchange_rate_used" type="number" min="0.00000001" step="0.00000001" required /></label>
         <label>Valid until · Baghdad time<input name="valid_until" type="datetime-local" required /></label>
         {submitButton}
+        </fieldset>
       </form>
       <details className="secondary-details"><summary>Rate history</summary>
       <ul>{records('fx_rate_versions').map(row => <li key={row.id}>
