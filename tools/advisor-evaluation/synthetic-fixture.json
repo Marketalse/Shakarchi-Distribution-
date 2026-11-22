@@ -1,0 +1,47 @@
+{
+  "source": "Synthetic M6.Q1",
+  "migration_head": "016",
+  "as_of": "2026-11-22T12:00:00+00:00",
+  "timezone": "Asia/Baghdad",
+  "period_start": "2026-11-15T21:00:00Z",
+  "period_end": "2026-11-22T21:00:00Z",
+  "today_partial": true,
+  "metrics": {
+    "invoice_count": 2,
+    "invoiced_sales": "100.00",
+    "net_collections": "60.00",
+    "current_outstanding": "40.00",
+    "current_overpayments": "0.00",
+    "current_overdue": "10.00",
+    "unknown_aging": "0.00",
+    "unallocated_cash": "0.00",
+    "unallocated_entries": 0,
+    "reminders_due": 0
+  },
+  "checks": {
+    "line_totals_match": true,
+    "cash_reconciles": true,
+    "balances_valid": true,
+    "all_orders_reportable": true
+  },
+  "candidates": [
+    {
+      "client_alias": "Client A",
+      "invoice_label": "INV-TEST1",
+      "route": "/admin/orders?invoice=00000000-0000-0000-0000-000000000001",
+      "amount": "10.00",
+      "due_date": "2026-11-21",
+      "scheduled_at": null,
+      "reason": "overdue"
+    },
+    {
+      "client_alias": "Client B",
+      "invoice_label": "INV-TEST2",
+      "route": "/admin/orders?invoice=00000000-0000-0000-0000-000000000002",
+      "amount": "30.00",
+      "due_date": "2026-11-26",
+      "scheduled_at": "2026-11-26T09:00:00Z",
+      "reason": "upcoming"
+    }
+  ]
+}

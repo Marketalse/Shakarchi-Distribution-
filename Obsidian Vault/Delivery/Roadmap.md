@@ -19,3 +19,7 @@ The Notion day plan below is historical planning context; revise dates after app
 ## M1 requirements acceptance — 20 November 2026
 
 Client-profile requirements for [#7](https://github.com/Marketalse/Shakarchi-Distribution-/issues/7) are finalized in [the accepted field contract](../Product/Form-workflows.md#m1-client-profile-acceptance). Creation/update identity, optional contacts, duplicate warnings and location correction use the implemented solo model. Phone navigation acceptance stays in #29; closing M1 does not close the field pilot.
+
+
+## Owner-authorized M6 evaluation — 22 November 2026
+Start #14 on the verified reporting subset while #13 remains open as final-certification dependency. Deliver a factual/collection-priority comparison and obtain owner usefulness feedback. No autonomous posting, external delivery, production advisor integration or new runtime dependency. See [evaluation](../Technical/M6-advisor-evaluation.md) and [current priorities](Milestone-status-2026-11-22.md).
