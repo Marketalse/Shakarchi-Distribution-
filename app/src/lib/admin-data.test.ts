@@ -120,3 +120,18 @@ it('today uses the Baghdad boundary, excludes future invoices and keeps prior de
   expect(summary.chart).toEqual([{day:'2026-11-21',total:'3.35'}]);
   expect(summary.report.outstanding).toBe('7.85');
 });
+
+it('binds acknowledged field sources into the separate dashboard loader and does not fetch phone-only queues',async()=>{
+ const {loadAdminData}=await import('./admin-data');const tables:string[]=[]
+ const rows:Record<string,unknown[]>={outlets:[{id:'client',retail_name:'Test client'}],visits:[{id:'visit',outlet_id:'client',checked_in_at:'2026-11-22T00:00:00Z',checked_out_at:null}],survey_runs:[{id:'run',outlet_id:'client',version_id:'version',answers:{zero:0,no:false},created_at:'2026-11-22T00:00:00Z'}]}
+ const client={from:(table:string)=>{tables.push(table);return {select:()=>({order:()=>({range:async()=>({data:rows[table]??[],error:null})})})}}} as unknown as SupabaseClient
+ const data=await loadAdminData(client);expect(data.visits).toHaveLength(1);expect(data.runs[0].answers).toEqual({zero:0,no:false});expect(tables).toContain('visits');expect(tables).toContain('order_lines');expect(tables).not.toContain('capture_drafts');expect(tables).not.toContain('commands')
+})
+
+it('separates today cash reversals/refunds from the original invoice cohort without inflating sales',()=>{
+ const invoices=[{id:'invoice',invoice_no:1,outlet_id:'client',total:'100.00',collected:'45.00',outstanding:'55.00',overpayment:'0.00',due_date:'2026-11-21',payment_status:'Partially paid',created_at:'2026-11-21T00:00:00Z'}]
+ const cash=[{id:'receipt',amount:'60.00',collected_at:'2026-11-21T00:00:00Z',entry_type:'receipt'},{id:'reversal',amount:'-60.00',collected_at:'2026-11-22T00:00:00Z',entry_type:'correction_reversal'},{id:'replacement',amount:'50.00',collected_at:'2026-11-22T00:00:01Z',entry_type:'receipt'},{id:'refund',amount:'-5.00',collected_at:'2026-11-22T00:00:02Z',entry_type:'refund'}].map(p=>({...p,order_id:'invoice',method:'cash'}))
+ const at=new Date('2026-11-22T12:00:00Z'),source={...data,invoices,cash}
+ const today=adminSummary(source,'today',at),all=adminSummary(source,'all',at)
+ expect(today.sales).toBe('0.00');expect(today.cash).toBe('-15.00');expect(all.sales).toBe('100.00');expect(all.cash).toBe('45.00');expect(all.report.outstanding).toBe('55.00');expect(all.report.discrepancy).toBe('0.00')
+})

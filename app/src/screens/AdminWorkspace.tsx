@@ -1,5 +1,7 @@
+import {watchAdminRefresh} from '../lib/admin-refresh';
+import {operationalReport} from '../lib/operational-report';
 import {catalogSales} from '../lib/catalog-report';
-import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { liveQuery } from 'dexie';
 import { supabase } from '../lib/supabase';
@@ -137,6 +139,27 @@ function InvoiceTable({
 </table>
 </div>;
 }
+function FieldOperations() {
+ const {data,period,clock}=useWorkspace()
+ let result:ReturnType<typeof operationalReport>|undefined,error=''
+ try{result=operationalReport(data,period,new Date(clock))}catch(e){error=fail(e)}
+ const recorded=(value:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(value))
+ return <Panel title="Confirmed field activity" action={<span className="admin-badge">Baghdad recorded dates</span>}>
+ <p className="admin-subtle">Last fetched {recorded(data.loadedAt)}. Shows uploaded data only. Unsent phone drafts appear after syncing.</p>
+ {error?<p role="alert" className="error">{error}</p>:result&&<>
+ <div className="admin-metrics four">
+ <Metric label="Visits recorded" value={result.started} detail="Started in selected period" />
+ <Metric label="Visits completed" value={result.completed} detail="Finished in selected period" />
+ <Metric label="Stores visited" value={result.clientsVisited} detail="Distinct stores with completed stops" />
+ <Metric label="Open visits" value={result.open} detail="Current unfinished stops · all dates" />
+ <Metric label="Survey forms received" value={result.forms} detail="Confirmed form submissions in period" />
+ <Metric label="Market observations" value={result.observations} detail="Separate from survey-form responses" />
+ </div>
+ <p className="admin-subtle">An order and survey at one stop count as one visit. Dates reflect when work was recorded online. Offline work may appear on its upload date.</p>
+ <details><summary>Recent confirmed activity</summary>{result.activity.length?<div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Recorded · Baghdad</th><th>Client</th><th>Activity</th></tr></thead><tbody>{result.activity.map(row=><tr key={row.key}><td>{recorded(row.at)}</td><td><Link to={'/admin/clients/'+row.outlet_id}>{data.clients.find(c=>c.id===row.outlet_id)?.retail_name||'Client unavailable'}</Link></td><td>{row.kind}</td></tr>)}</tbody></table></div>:<p>No confirmed activity in this period.</p>}</details>
+ </>}
+ </Panel>
+}
 function Overview() {
   const {
       data,
@@ -145,14 +168,15 @@ function Overview() {
       clock
     } = useWorkspace(),
     summary = adminSummary(data, period, new Date(clock));
-  const periodLabel = period === 'week' ? 'Last 7 days' : period === 'month' ? 'This month' : 'All recorded dates';
+  const periodLabel = period === 'today' ? 'Today' : period === 'week' ? 'Last 7 days' : period === 'month' ? 'This month' : 'All recorded dates';
   let salesGroups: ReturnType<typeof catalogSales>=[],groupError='';
   try{const issued=new Set(data.invoices.filter(i=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Baghdad',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.created_at));return (!summary.start || d>=summary.start)&&d<=summary.today}).map(i=>i.id));salesGroups=catalogSales(data.invoiceLines??[],issued,summary.sales)}catch(e){groupError=fail(e)}
   const max = summary.chart.reduce((v, b) => usdCents(b.total) > usdCents(v) ? b.total : v, '0.00');
   const collectionProgress = percentOf(summary.allocated, summary.invoiced);
   return <>
+  <FieldOperations />
   <div className="admin-metrics four">
-<Metric label="Sales · USD" value={<span title={formatUsd(summary.sales)}>{formatUsdSummary(summary.sales)}</span>} detail={summary.invoiceCount + ' invoices · ' + periodLabel} />
+<Metric label="Invoiced sales · USD" value={<span title={formatUsd(summary.sales)}>{formatUsdSummary(summary.sales)}</span>} detail={summary.invoiceCount + ' invoices · ' + periodLabel} />
 <Metric label="Net cash · USD" value={<span title={formatUsd(summary.cash)}>{formatUsdSummary(summary.cash)}</span>} detail={periodLabel + ' · refunds included'} />
 <Metric label="Outstanding · USD" value={formatUsd(summary.report.outstanding)} detail="Current balance · all invoices" />
 <Metric label="Active clients" value={summary.activeClients} detail="Current retail network" />
@@ -202,15 +226,15 @@ function Overview() {
 <Link className="admin-attention" to="/admin/surveys">
 <span className="admin-count">{pending.surveys}</span>
 <span>
-<strong>Saved survey responses</strong>
-<small>Unfinished or waiting on this device</small>
+<strong>Admin-browser survey drafts</strong>
+<small>Local to this admin browser · excludes unsynced phones</small>
 </span>
 </Link>
 <Link className="admin-attention" to="/admin/imports">
 <span className="admin-count">{pending.imports}</span>
 <span>
 <strong>Pending imports</strong>
-<small>Queued operations on this device</small>
+<small>Queued in this admin browser only</small>
 </span>
 </Link>
 </Panel>
@@ -544,24 +568,20 @@ export function AdminWorkspace({
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
   }, []);
+  const fetching=useRef(false),fetchGeneration=useRef(0)
   const refresh = () => {
+    if(fetching.current)return;
     setLoading(true);
     setRevision(v => v + 1);
   };
-  useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 30000);
-    const focused = () => {
-      setLoading(true);
-      setRevision(v => v + 1);
-    };
-    window.addEventListener('focus', focused);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('focus', focused);
-    };
-  }, []);
+  useEffect(() => watchAdminRefresh(() => {
+    if(fetching.current)return;
+    setLoading(true);setRevision(v=>v+1);
+  },setClock),[]);
   useEffect(() => {
     let active = true;
+    const request=++fetchGeneration.current
+    fetching.current=true;
     void (async () => {
       if (!supabase) throw Error('Database connection unavailable.');
       return loadAdminData(supabase);
@@ -573,6 +593,7 @@ export function AdminWorkspace({
     }, failure => {
       if (active) setError(fail(failure));
     }).finally(() => {
+      if(request===fetchGeneration.current)fetching.current=false;
       if (active) setLoading(false);
     });
     return () => {
@@ -593,7 +614,7 @@ export function AdminWorkspace({
   useEffect(() => {
     const subscription = liveQuery(async () => ({
       surveys: await db.capture_drafts.where('owner_id').equals(userId).filter(d => ['queued', 'rejected'].includes(d.status) || d.status === 'editing' && Boolean(d.version_id || d.brand_id || Object.keys(d.raw_answers).length)).count(),
-      imports: await db.commands.where('owner_id').equals(userId).filter(c => c.rpc === 'import_solo_data').count()
+      imports: await db.commands.where('owner_id').equals(userId).filter(c => ['import_solo_data','import_solo_data_v2'].includes(c.rpc)).count()
     })).subscribe({
       next: setPending,
       error: failure => setError('Device queue could not be read: ' + fail(failure))
@@ -660,6 +681,7 @@ export function AdminWorkspace({
 <button type="submit" aria-label="Search workspace records">Search</button>
 </form>
 <div className="admin-topbar-actions">{segment === 'overview' ? <select aria-label="Overview reporting period" value={period} onChange={e => setPeriod(e.target.value as AdminPeriod)}>
+<option value="today">Today</option>
 <option value="week">Last 7 days</option>
 <option value="month">This month</option>
 <option value="all">All time</option>
