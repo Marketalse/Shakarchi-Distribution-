@@ -1,3 +1,4 @@
+import {invoiceGrossProfit, receivablesAging} from '../lib/finance-reports';
 import {watchAdminRefresh} from '../lib/admin-refresh';
 import {operationalReport} from '../lib/operational-report';
 import {catalogSales} from '../lib/catalog-report';
@@ -160,6 +161,27 @@ function FieldOperations() {
  </>}
  </Panel>
 }
+function GrossProfitPanel() {
+ const {data,period,clock}=useWorkspace();
+ let result:ReturnType<typeof invoiceGrossProfit>|undefined,error='';
+ try{result=invoiceGrossProfit(data.invoices,data.invoiceLines,period,new Date(clock))}catch(e){error=fail(e)}
+ const amount=(value:string|null)=>value===null?'Unavailable':formatUsd(value);
+ return <Panel title="Invoice gross profit · USD" action={<span className="admin-badge">Selected invoice period</span>}>
+ <p className="admin-subtle">Issued sales minus stored invoice-line costs. Gross profit excludes operating expenses and is not net profit. Customer refunds change collections, not invoice revenue.</p>
+ {error?<p className="error" role="alert">{error}</p>:result&&<>
+ <div className="admin-metrics four">
+ <Metric label="Invoiced sales" value={formatUsd(result.total.sales)} detail="Same invoice cohort as sales above" />
+ <Metric label="Recorded cost of goods" value={amount(result.total.cost)} detail="Frozen cost × stored quantity" />
+ <Metric label="Gross profit" value={amount(result.total.profit)} detail="Requires complete supported cost evidence" />
+ <Metric label="Gross margin" value={result.total.margin===null?'Unavailable':result.total.margin+'%'} detail="Undefined when invoiced sales are not positive" />
+ </div>
+ <p className="admin-subtle">Cost evidence: {result.total.lines-result.total.missing-result.total.returns} of {result.total.lines} lines. {result.total.missing} missing cost, currency or line metadata; {result.total.returns} returns needing verified cost-impact review. Missing information never becomes zero cost.</p>
+ {!result.total.lines&&<p>No issued invoice lines in this period.</p>}
+ <details><summary>Gross profit by product</summary><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Brand / product line</th><th>Item</th><th>Sales · USD</th><th>Cost · USD</th><th>Gross profit · USD</th><th>Margin</th></tr></thead><tbody>{result.groups.map((g,index)=><tr key={index}><td>{g.brand} / {g.line}</td><td>{g.label}</td><td>{formatUsd(g.value.sales)}</td><td>{amount(g.value.cost)}</td><td>{amount(g.value.profit)}</td><td>{g.value.margin===null?'Unavailable':g.value.margin+'%'}</td></tr>)}</tbody></table></div></details>
+ <details><summary>Gross profit by client</summary><p className="admin-subtle">Product gross profit only; no delivery or overhead allocation.</p><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Client</th><th>Sales · USD</th><th>Cost · USD</th><th>Gross profit · USD</th><th>Margin</th></tr></thead><tbody>{result.clients.map(c=><tr key={c.id}><td><Link to={'/admin/clients/'+c.id}>{data.clients.find(client=>client.id===c.id)?.retail_name||'Client unavailable'}</Link></td><td>{formatUsd(c.sales)}</td><td>{amount(c.cost)}</td><td>{amount(c.profit)}</td><td>{c.margin===null?'Unavailable':c.margin+'%'}</td></tr>)}</tbody></table></div></details>
+ </>}
+ </Panel>
+}
 function Overview() {
   const {
       data,
@@ -187,6 +209,7 @@ function Overview() {
 <p className="admin-subtle">Issued invoice cohort · USD · original invoice descriptions</p>
 {groupError ? <p role="alert">{groupError}</p> : !salesGroups.length ? <p>No issued sales in this period.</p> : [...new Set(salesGroups.map(r=>r.brand))].map(brand=><details key={brand}><summary>{brand} · {formatUsd(sumUsd(salesGroups.filter(r=>r.brand===brand).map(r=>r.total)))}</summary>{[...new Set(salesGroups.filter(r=>r.brand===brand).map(r=>r.line))].map(line=><details key={line}><summary>{line} · {formatUsd(sumUsd(salesGroups.filter(r=>r.brand===brand&&r.line===line).map(r=>r.total)))}</summary><ul>{salesGroups.filter(r=>r.brand===brand&&r.line===line).map(row=><li key={row.variant}>{row.variant}: {formatUsd(row.total)}</li>)}</ul></details>)}</details>)}
 </Panel>
+  <GrossProfitPanel />
   <div className="admin-grid">
 <Panel title="Sales performance" action={<span className="admin-badge">{period === 'all' ? 'Last 30 days' : periodLabel}</span>}>
 <p className="admin-subtle">Invoiced sales · USD · Baghdad dates</p>
@@ -317,6 +340,19 @@ function InvoiceRegister() {
 </Panel>
 </>;
 }
+function AgingPanel() {
+ const {data,clock}=useWorkspace();
+ let report:ReturnType<typeof receivablesAging>|undefined,error='';
+ try{report=receivablesAging(data.invoices,new Date(clock))}catch(e){error=fail(e)}
+ return <Panel title="Customer receivables aging" action={<span className="admin-badge">Current balances · Baghdad</span>}>
+ <p className="admin-subtle">Current unpaid invoice balances by days past due. Due today is not overdue. Overpayments do not cancel another invoice's debt. This is not a historical as-of statement.</p>
+ {error?<p role="alert" className="error">{error}</p>:report&&<>
+ <p>As of {report.today} · Total outstanding {formatUsd(report.total)}</p>
+ <div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Age</th><th>Invoices</th><th>Outstanding · USD</th></tr></thead><tbody>{report.buckets.map(b=><tr key={b.label}><td>{b.label}</td><td>{b.count}</td><td>{formatUsd(b.amount)}</td></tr>)}</tbody></table></div>
+ <details><summary>Open invoices by client</summary><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Client</th><th>Invoice</th><th>Due date</th><th>Age</th><th>Outstanding · USD</th></tr></thead><tbody>{report.rows.map(({invoice,bucket})=><tr key={invoice.id}><td><Link to={'/admin/clients/'+invoice.outlet_id}>{data.clients.find(c=>c.id===invoice.outlet_id)?.retail_name||invoice.recipient_snapshot?.name||'Client unavailable'}</Link></td><td><Link to={'/admin/orders?invoice='+invoice.id}>{adminInvoiceLabel(invoice)}</Link></td><td>{invoice.due_date??'Unknown'}</td><td>{bucket}</td><td>{formatUsd(invoice.outstanding)}</td></tr>)}</tbody></table></div></details>
+ </>}
+ </Panel>
+}
 function Collections() {
   const {
       data,
@@ -331,7 +367,10 @@ function Collections() {
 <Metric label="Outstanding · USD" value={formatUsd(report.outstanding)} detail="Current open balances" />
 <Metric label="Net cash · USD" value={formatUsd(report.netCash)} detail="All time · signed ledger entries" />
 <Metric label="Follow-ups due" value={report.due.length} detail="Scheduled payment reminders" />
+<Metric label="Overdue · USD" value={formatUsd(report.overdue)} detail="Due before today · current balances" />
+<Metric label="Overpayments · USD" value={formatUsd(report.overpayment)} detail="Separate from other invoice debts" />
 </div>
+<AgingPanel />
 <Panel title="Collection reminders">
 <div className="admin-table-scroll">
 <table className="admin-table">
