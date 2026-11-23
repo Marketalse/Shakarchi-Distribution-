@@ -16,3 +16,7 @@ This is a planning baseline. Phase status and approval live in GitHub; an existi
 - [Visit retry fix and client invoice feedback](Technical/Visit-retry-and-invoice-feedback.md)
 
 - [M5 aging and gross-profit reporting](Technical/M5-finance-reporting.md) · [Separate accounting phase scope](Technical/Accounting-expansion-scope.md)
+
+- [Manual exchange-rate pending recovery](Technical/Manual-rate-pending-recovery.md)
+
+- [M6 advisor evaluation](Technical/M6-advisor-evaluation.md) · [Current milestone status and priorities](Delivery/Milestone-status-2026-11-22.md)

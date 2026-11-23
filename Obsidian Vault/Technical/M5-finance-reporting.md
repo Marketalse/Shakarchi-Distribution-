@@ -18,7 +18,6 @@ Admin-only read-only UI using existing owner access/RLS. Loader selects existing
 
 Release/deployment and rendered acceptance evidence will be appended after verification. #13/#12 are not automatically closed by this reporting addition. #62 own-performance and #58 full audit remain separate.
 
-
 ## Released and verified — 22 November 2026
 PR70 merged as main3116086a56afcd5a702e7b4787da3d05b8ad7be6. Admin and mobile production READY on that exact commit. Signed-in production rendered current aging, product/client gross-profit breakdowns and Today/weekly selection. Independent SQL matched displayed aging totals and weekly/Today COGS, gross profit and rounded margin; line costs reconcile to the existing invoice cost view. Captured browser error log empty.98 app tests, both builds and disposable001–016 regressions pass. Four pre-existing lint warnings retained. No schema/RLS/financial or customer writes. Private screenshots remain outside Git.
 

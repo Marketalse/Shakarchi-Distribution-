@@ -1,4 +1,4 @@
-import { sumUsd, usdAmount, usdCents } from './money'
+import { sumUsd, usdAmount, usdCents } from './money.js'
 export type Balance = { id: string; invoice_no: number; outlet_id: string; total: string | number; collected: string | number; outstanding: string | number; overpayment: string | number; due_date: string | null; payment_status: string; recipient_snapshot?: { name?: string } | null }
 export type CashEntry = { id: string; order_id: string | null; amount: string | number }
 export type Reminder = { order_id: string; status: string; scheduled_at: string | null }

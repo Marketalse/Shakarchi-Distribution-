@@ -2,5 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:admin",
   "outputDirectory": "dist-admin",
-  "rewrites": [{ "source": "/((?!assets/|mobile-assets/|wireframe/|icon-).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api(?:/|$)|assets/|mobile-assets/|wireframe/|icon-).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/advisor.ts": {
+      "maxDuration": 60
+    }
+  }
 }
