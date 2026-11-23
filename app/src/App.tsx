@@ -28,14 +28,14 @@ export default function App() {
     : pathname === '/me' ? 'Me'
     : pathname.startsWith('/admin') ? 'Admin website'
     : pathname === '/outlets/new' ? 'New client'
-    : pathname.startsWith('/retails/') ? 'Retail'
+    : pathname.startsWith('/retails/') ? 'Retail Details'
     : pathname.startsWith('/visit/') ? 'Visit'
     : 'Your clients'
   const tabs = [
-    ['/dashboard', 'Overview', 'home'],
-    ['/', 'Clients', 'shop'],
+    ['/dashboard', 'Home', 'home'],
+    ['/', 'Stores', 'shop'],
     ['/orders', 'Orders', 'cart'],
-    ['/me', 'Me', 'user'],
+    ['/me', 'User', 'user'],
   ]
 
   return (
