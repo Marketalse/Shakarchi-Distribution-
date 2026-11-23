@@ -1,3 +1,5 @@
+import {ManagerHome, ManagerActivity, ManagerClientContext} from './ManagerPages';
+import {managerNavigation} from '../lib/manager-workspace';
 import {AdminAdvisor} from './AdminAdvisor';
 import {invoiceGrossProfit, receivablesAging} from '../lib/finance-reports';
 import {watchAdminRefresh} from '../lib/admin-refresh';
@@ -39,7 +41,9 @@ const date = formatAdminDate;
 const fail = (error: unknown) => error instanceof Error ? error.message : String(error);
 const descriptions: Record<string, [string, string]> = {
   advisor: ['AI advisor', 'Source-linked collection review for the owner.'],
-  overview: ['Overview', 'Your distribution business, at a glance.'],
+  overview: ['Manager Home', 'Your daily focus, connected customers and field activity.'],
+  activity: ['Field Activity', 'Explore confirmed visits, invoices and survey activity.'],
+  reports: ['Reports', 'Reconciled sales, gross profit and field performance.'],
   clients: ['Clients', 'Manage your retail network and client profiles.'],
   orders: ['Orders & invoices', 'Review invoices and collection balances.'],
   collections: ['Collections', 'A focused workspace for payment follow-up.'],
@@ -50,13 +54,16 @@ const descriptions: Record<string, [string, string]> = {
   settings: ['Workspace settings', 'Owner profile and manual exchange rates.'],
   search: ['Search', 'Find clients, invoices and product records.']
 };
-const navigation = [['', 'Overview', 'home'], ['clients', 'Clients', 'shop'], ['orders', 'Orders', 'cart'], ['collections', 'Collections', 'wallet'], ['advisor', 'AI advisor', 'chart'], ['catalog', 'Catalog', 'box'], ['surveys', 'Surveys', 'chart'], ['imports', 'Imports', 'upload'], ['settings', 'Settings', 'settings']];
+
 export function AdminIcon({
   name
 }: {
   name: string;
 }) {
   const paths: Record<string, string> = {
+    pin: 'M12 22s8-7 8-13a8 8 0 0 0-16 0c0 6 8 13 8 13Zm0-16a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+    file: 'M5 2h10l4 4v16H5V2Zm10 0v5h4M8 11h8M8 15h8M8 19h5',
+    spark: 'm12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z',
     home: 'M3 10 12 3l9 7v11h-7v-7h-4v7H3Z',
     shop: 'M4 10v11h16V10M3 3h18l-1 7H4L3 3Zm6 18v-7h6v7',
     cart: 'M2 3h3l3 13h11l3-10H6m3 14h1m8 0h1',
@@ -184,6 +191,9 @@ function GrossProfitPanel() {
  </>}
  </Panel>
 }
+function ManagerLanding(){const {data,period,clock}=useWorkspace();return <ManagerHome data={data} period={period} clock={clock}/>}
+function ActivityWorkspace(){const {data,period,clock}=useWorkspace();return <><FieldOperations/><ManagerActivity data={data} period={period} clock={clock}/></>}
+function CustomerWorkspace(){const {data,clock,refresh}=useWorkspace();return <><ManagerClientContext data={data} clock={clock}/><div className="admin-panel"><AdminClients embedded onChanged={refresh}/></div></>}
 function Overview() {
   const {
       data,
@@ -690,10 +700,7 @@ export function AdminWorkspace({
 </button>
 </div>
 <p className="admin-workspace-label">OWNER WORKSPACE</p>
-<nav aria-label="Admin navigation">{navigation.map(([path, label, icon]) => <NavLink end={!path} key={path} to={'/admin' + (path ? '/' + path : '')} title={label} onClick={() => setMobileOpen(false)}>
-<AdminIcon name={icon} />
-<span>{label}</span>
-</NavLink>)}</nav>
+<nav aria-label="Admin navigation">{managerNavigation.map(group => <div className="manager-nav-group" key={group.label}><p>{group.label}</p>{group.items.map(([path,label,icon])=><NavLink end={!path} key={path} to={'/admin'+(path?'/'+path:'')} title={label} onClick={()=>setMobileOpen(false)}><AdminIcon name={icon}/><span>{label}</span></NavLink>)}</div>)}</nav>
 <div className="admin-sidebar-footer">
 <div className="admin-sidebar-note">
 <AdminIcon name="check" />
@@ -721,7 +728,7 @@ export function AdminWorkspace({
 <input aria-label="Search workspace" placeholder="Search clients, invoices or products" value={query} onChange={e => setQuery(e.target.value)} />
 <button type="submit" aria-label="Search workspace records">Search</button>
 </form>
-<div className="admin-topbar-actions">{segment === 'overview' ? <select aria-label="Overview reporting period" value={period} onChange={e => setPeriod(e.target.value as AdminPeriod)}>
+<div className="admin-topbar-actions">{['overview','reports','activity'].includes(segment) ? <select aria-label="Workspace reporting period" value={period} onChange={e => setPeriod(e.target.value as AdminPeriod)}>
 <option value="today">Today</option>
 <option value="week">Last 7 days</option>
 <option value="month">This month</option>
@@ -751,14 +758,14 @@ export function AdminWorkspace({
       }}>
 <div className="admin-content" aria-busy={loading}>
 <Routes>
-    <Route index element={params.get('invoice') ? <Navigate replace to={'collections?invoice=' + encodeURIComponent(params.get('invoice')!)} /> : <Overview />} />
+    <Route index element={params.get('invoice') ? <Navigate replace to={'collections?invoice=' + encodeURIComponent(params.get('invoice')!)} /> : <ManagerLanding />} />
+    <Route path="reports" element={<Overview/>}/>
+    <Route path="activity" element={<ActivityWorkspace/>}/>
     <Route path="clients" element={<ClientDirectory />} />
 <Route path="clients/new" element={<Panel title="New client">
 <NewOutlet repId={userId} onSaved={() => void sync()} adminMode />
 </Panel>} />
-<Route path="clients/:outletId" element={<div className="admin-panel">
-<AdminClients embedded onChanged={refresh} />
-</div>} />
+<Route path="clients/:outletId" element={<CustomerWorkspace/>}/>
     <Route path="orders" element={<InvoiceRegister />} />
 <Route path="collections" element={<Collections />} />
 <Route path="advisor" element={<AdminAdvisor />} />
