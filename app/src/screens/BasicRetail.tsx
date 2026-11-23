@@ -103,16 +103,16 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
   if (!outletId || !retail) return <main><Link to="/">Retail list</Link><p>Retail details are unavailable.</p></main>
 
   return (
-    <main>
-      <Link to="/">Retail list</Link>
-      <section className="card client-heading"><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} /></section>
+    <main className={tab === 'Order' ? 'retail-detail order-detail' : 'retail-detail'}>
+      <div className="detail-heading">{tab !== 'Summary' && <button className="link" onClick={() => setTab('Summary')}>← Retail details</button>}<Link to="/">All stores</Link></div>
+      <section className="card client-heading" hidden={tab === 'Order'}><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} disclosure /></section>
       <nav className="retail-tabs" aria-label="Retail actions">
         {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
       </nav>
       {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary key={version+':'+revision} retail={retail} revision={revision} /></>}
+      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary key={version+':'+revision} retail={retail} revision={revision} /><details className="retail-disclosure"><summary>Contact Information <span>⌄</span></summary><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Phone not recorded'}</p><button onClick={() => setTab('Profile')}>View client profile</button></details></>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
@@ -132,19 +132,19 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
   }).format(new Date()))
   const reminder = data?.flatMap(({next_visit}) => next_visit && next_visit >= today ? [next_visit] : []).sort()[0]
   return <>
-    <dl className="metrics">
+    <h2>Store Details</h2><dl className="metrics store-details">
       <div><dt>Location</dt><dd>{retail.address || [retail.area, retail.province].join(', ')}</dd></div>
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
-    <ClientOverdue outletId={retail.id} revision={revision}/>
+    <details className="retail-disclosure"><summary>Financial Overview <span>⌄</span></summary><ClientOverdue outletId={retail.id} revision={revision}/></details>
     <ClientInvoiceHistory outletId={retail.id} revision={revision}/>
   </>
 }
 
 function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:number}) {
   const {data,error}=useRows(()=>rows<{id:string;created_at:string;total:string}>('solo_invoice_balances','id,outlet_id,created_at,total',outletId),'client-invoices:'+outletId+':'+revision)
-  return <section className="card"><h2>Invoice history</h2>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
+  return <section className="card journey-card"><h2>Customer Journey</h2><p className="muted">Recent invoices</p>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
 function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: () => void; ownerId:string;cacheVersion:number }) {
@@ -152,6 +152,8 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
   const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`)
   const [brand, setBrand] = useState('')
   const [productLine,setProductLine]=useState('')
+  const [search,setSearch]=useState('')
+  const [showFilters,setShowFilters]=useState(false)
   const [reviewing, setReviewing] = useState(false)
   const [savedInvoice, setSavedInvoice] = useState('')
   const [lines, setLines] = useState<Record<string, number>>({})
@@ -176,6 +178,8 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
   useEffect(()=>{if(!pendingAttempt)return;const id=pendingAttempt.id;const sub=liveQuery(()=>db.local_meta.get('command-result:'+id)).subscribe({next:row=>{if(!row)return;const ack=JSON.parse(row.value);if(ack.owner_id!==ownerId||!ack.result?.order_id)return;setSuccess('Invoice #'+ack.result.invoice_no+' created.');setSavedInvoice(ack.result.order_id);attempt.current=null;setPendingAttempt(null);localStorage.removeItem(pendingKey);sessionStorage.removeItem(pendingKey);void db.local_meta.delete(pendingMeta);setLines({});setTerms('0');setInitialReceipt('0.0');setNextVisit('');setReviewing(false);onSaved()},error:e=>setError(message(e))});return()=>sub.unsubscribe()},[pendingAttempt,ownerId,pendingKey,pendingMeta,onSaved])
 
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
+  const query = search.trim().toLocaleLowerCase()
+  const visibleProducts = catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine) && (!query || [skuOf(item),brandOf(item),item.product_line,item.sku].join(' ').toLocaleLowerCase().includes(query)))
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
   const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
   let paymentSummary: ReturnType<typeof checkoutBalance> | undefined
@@ -274,17 +278,19 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
           {busy ? 'Creating invoice…' : 'Submit and create invoice'}
         </button>
       </> : <>
-        <nav className="retail-tabs" aria-label="Catalog brand">
+        <h2 className="order-title">New Order</h2>
+        <div className="catalog-search-row"><label className="mobile-search"><MobileIcon name="search" size={20}/><input aria-label="Search products" placeholder="Search products…" type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label><button type="button" className="filter-toggle" aria-label="Product filters" aria-expanded={showFilters} onClick={()=>setShowFilters(value=>!value)}><MobileIcon name="filter" size={22}/></button></div>
+        <nav className="retail-tabs brand-filters" aria-label="Catalog brand">
           <button type="button" aria-pressed={!brand} onClick={() => {setBrand('');setProductLine('')}}>All</button>
           {brands.map(value => <button type="button" key={value} aria-pressed={brand === value}
             onClick={() => {setBrand(value);setProductLine('')}}>{value}</button>)}
         </nav>
-        <label>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
+        <label hidden={!showFilters}>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
         <p className="muted">Order in 0.5 Pack steps. Each product shows its own pack and box sizes.</p>
-        {catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine)).map(item => <div className="card sku-row" key={item.id}>
+        {visibleProducts?.map(item => <div className="card sku-row" key={item.id}>
           <span className="product-thumbnail"><MobileIcon name="box" size={32} /></span>
           <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(packTotal(item.selling_price, item.items_per_half_pack, 1))} / Pack</p></div>
-          <div className="stepper-area"><p className="muted">½ Pack = {item.items_per_half_pack} items · Box = {item.packs_per_box} Packs</p><div className="stepper">
+          <p className="muted packaging-spec">½ Pack = {item.items_per_half_pack} items · Box = {item.packs_per_box} Packs</p><div className="stepper-area"><div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}
               onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 0.5) }))}>−</button>
             <output aria-label={skuOf(item) + ' quantity'}>{packBreakdown(lines[item.id] || 0,item.packs_per_box)}</output>
@@ -293,8 +299,9 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
           </div>
           </div>
         </div>)}
-        {catalog.data && catalog.data.length > 0 && <div className="cart-total"><div><small className="muted">{selected.length} SKUs</small><br /><strong>{money(total)}</strong></div>
-          <button type="button" className="primary" disabled={!selected.length} onClick={() => setReviewing(true)}>Review</button></div>}
+        {catalog.data && catalog.data.length > 0 && visibleProducts?.length === 0 && <p role="status">No products match your search and filters.</p>}
+        {catalog.data && catalog.data.length > 0 && <div className="cart-total"><div><strong>Cart · {selected.length} {selected.length === 1 ? 'item' : 'items'}</strong><span>{money(total)}</span></div>
+          <button type="button" className="primary" disabled={!selected.length} onClick={() => setReviewing(true)}>View Cart <MobileIcon name="cart" size={18}/></button></div>}
       </>}
     </fieldset>
     {!catalog.data && !catalog.error && <p role="status">Loading products…</p>}
