@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import type { Outlet } from '../lib/types'
 import { MobileIcon } from './MobileIcon'
@@ -7,6 +7,8 @@ import { StoreNavigation } from './StoreNavigation'
 import { en as t } from '../i18n/en'
 
 export function Outlets({ version }: { version: number }) {
+  const [params]=useSearchParams()
+  const creatingOrder=params.get('action')==='order'
   const [outlets, setOutlets] = useState<Outlet[]>([])
   const [queued, setQueued] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
@@ -25,7 +27,7 @@ export function Outlets({ version }: { version: number }) {
   return (
     <main>
       <div className="row">
-        <h1>Retails</h1>
+        <h1>{creatingOrder?'Choose customer':'Your clients'}</h1>
         <Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link>
       </div>
       <label className="mobile-search"><MobileIcon name="search" size={21} /><input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} /></label>
@@ -38,18 +40,18 @@ export function Outlets({ version }: { version: number }) {
         <ul className="list">
           {shown.map((o) => (
             <li key={o.id} className="retail-row">
-              <Link to={`/retails/${o.id}`} className="client-identity">
+              <Link to={`/retails/${o.id}${creatingOrder?'?action=order':''}`} className="client-identity">
                 <span className="client-avatar" aria-hidden="true">{o.retail_name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('')}</span>
                 <span>
                   <strong>{o.retail_name}</strong>
                   <br />
-                  <span className="muted">{o.area} · {o.outlet_type}</span>
+                  <span className="muted">{o.area}</span>
                 </span>
                 <span className="tags">
                   {queued.has(o.id) && <span className="tag warn">{t.waitingUpload}</span>}
                 </span>
               </Link>
-              <StoreNavigation retail={o} compact/>
+              <StoreNavigation retail={o} compact disclosure/>
             </li>
           ))}
         </ul>

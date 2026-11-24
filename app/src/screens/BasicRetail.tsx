@@ -1,3 +1,5 @@
+import {InvoicePdfActions} from './InvoicePdfActions'
+import {catalogMode} from '../lib/catalog-display'
 import {ProductImage} from './ProductImage'
 import {VisitWorkspace} from './VisitWorkspace'
 import {liveQuery} from 'dexie'
@@ -5,8 +7,8 @@ import {fieldCatalog} from '../lib/catalog'
 import {stagePhoto} from '../lib/attachments'
 import {fieldTable,offlineOwner,cachedFieldRead} from '../lib/offline'
 import {openCaptureSession,requestCaptureFinish} from '../lib/capture-store'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
 import { formatUsd, formatUsdSummary, formatIqdRate, sumUsd, usdCents } from '../lib/money'
@@ -53,24 +55,26 @@ async function rows<T>(table: string, columns: string, outletId?: string, key = 
   })
 }
 
-function useRows<T>(loader: () => Promise<T>, key: string) {
-  const [state, setState] = useState<{ key: string; data?: T; error?: string }>({ key })
+function useRows<T>(loader: () => Promise<T>, key: string, identity=key) {
+  const [state, setState] = useState<{ key: string; identity:string; data?: T; error?: string }>({ key,identity })
   useEffect(() => {
     let current = true
     void loader().then(
-      (data) => { if (current) setState({ key, data }) },
-      (error: unknown) => { if (current) setState({ key, error: message(error) }) },
+      (data) => { if (current) setState({ key, identity, data }) },
+      (error: unknown) => { if (current) setState(previous=>({ key,identity,data:previous.identity===identity?previous.data:undefined,error:message(error) })) },
     )
     return () => { current = false }
     // The key identifies the query and any refresh after submission.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
-  return state.key === key ? state : { key }
+  }, [key,identity])
+  return state.identity === identity ? state : { key,identity }
 }
 
 export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequested }: { version: number; ownerId: string; onCaptureChanged: () => void; onSyncRequested: () => Promise<void> }) {
   const { outletId } = useParams()
-  const [tab, setTab] = useState('Summary')
+  const [routeParams]=useSearchParams()
+  const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':'Summary')
+  const [confirmation,setConfirmation]=useState<{id:string;number:number}>()
   const [visitId, setVisitId] = useState('')
   const [visitError, setVisitError] = useState('')
   const [visitBusy, setVisitBusy] = useState(false)
@@ -101,7 +105,9 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
   const { data: retail } = useRows(
     () => outletId ? db.outlets.get(outletId) : Promise.resolve(undefined),
     String(outletId) + ':' + version + ':' + revision,
+    String(outletId),
   )
+  const orderConfirmed=useCallback((invoice:{order_id:string;invoice_no:number})=>{setConfirmation({id:invoice.order_id,number:invoice.invoice_no});setRevision(n=>n+1);setTab('Survey forms')},[])
   if (!outletId || !retail) return <main><Link to="/">Retail list</Link><p>Retail details are unavailable.</p></main>
 
   return (
@@ -112,13 +118,14 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
         {['Summary', 'Order', 'Payments', 'Survey forms', 'Profile', 'Survey'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label === 'Summary' ? 'Visit workspace' : label}</button>)}
       </nav>
+      {confirmation&&<section className="card order-confirmation"><p role="status">✓ Thank you! Order #{confirmation.number} submitted.</p><p className="muted">Continue with the customer survey below.</p><InvoicePdfActions invoiceId={confirmation.id}/><Link to={'/orders?invoice='+confirmation.id}>View invoice</Link><button className="link" onClick={()=>setConfirmation(undefined)}>Dismiss</button></section>}
       {tab === 'Profile' && <><ClientOverdue retailName={retail.retail_name} outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/></details></>}
       {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
-      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}
+      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={orderConfirmed} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
       {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
     </main>
@@ -150,11 +157,13 @@ function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:numb
   return <section className="card journey-card"><h2>Customer Journey</h2><p className="muted">Recent invoices</p>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
-function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: () => void; ownerId:string;cacheVersion:number }) {
+export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: (invoice:{order_id:string;invoice_no:number}) => void; ownerId:string;cacheVersion:number }) {
   const [revision, setRevision] = useState(0)
-  const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`)
+  const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`,'catalog')
   const [brand, setBrand] = useState('')
   const [productLine,setProductLine]=useState('')
+  const [mode,setMode]=useState('')
+  const [layout,setLayout]=useState<'list'|'grid'>(()=>{try{return localStorage.getItem('catalog-layout')==='grid'?'grid':'list'}catch{return 'list'}})
   const [search,setSearch]=useState('')
   const [showFilters,setShowFilters]=useState(false)
   const [reviewing, setReviewing] = useState(false)
@@ -178,11 +187,24 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
   const draftWrites=useRef(Promise.resolve())
   useEffect(()=>{let active=true;void Promise.all([db.local_meta.get(draftKey),db.local_meta.get(pendingMeta)]).then(([draft,pending])=>{if(!active)return;if(pending){const saved=JSON.parse(pending.value);attempt.current=saved;setPendingAttempt(saved)}if(draft){const saved=JSON.parse(draft.value);setLines(saved.lines??{});setTerms(saved.terms??'0');setInitialReceipt(saved.collected??'0.0');setNextVisit(saved.nextVisit??'')}setDraftReady(true)}).catch(e=>setError(message(e)));return()=>{active=false}},[draftKey,pendingMeta])
   useEffect(()=>{if(!draftReady||pendingAttempt)return;draftWrites.current=draftWrites.current.catch(()=>{}).then(async()=>{await db.local_meta.put({key:draftKey,value:JSON.stringify({lines,terms,collected:initialReceipt,nextVisit})})});void draftWrites.current.catch(e=>setError('Draft save failed: '+message(e)))},[draftReady,pendingAttempt,draftKey,lines,terms,initialReceipt,nextVisit])
-  useEffect(()=>{if(!pendingAttempt)return;const id=pendingAttempt.id;const sub=liveQuery(()=>db.local_meta.get('command-result:'+id)).subscribe({next:row=>{if(!row)return;const ack=JSON.parse(row.value);if(ack.owner_id!==ownerId||!ack.result?.order_id)return;setSuccess('Invoice #'+ack.result.invoice_no+' created.');setSavedInvoice(ack.result.order_id);attempt.current=null;setPendingAttempt(null);localStorage.removeItem(pendingKey);sessionStorage.removeItem(pendingKey);void db.local_meta.delete(pendingMeta);setLines({});setTerms('0');setInitialReceipt('0.0');setNextVisit('');setReviewing(false);onSaved()},error:e=>setError(message(e))});return()=>sub.unsubscribe()},[pendingAttempt,ownerId,pendingKey,pendingMeta,onSaved])
+  const handled=useRef(new Set<string>())
+  const confirmed=useCallback(async(id:string,result:{order_id:string;invoice_no:number})=>{
+    if(handled.current.has(id))return;handled.current.add(id)
+    try{
+      await draftWrites.current
+      await db.transaction('rw',db.local_meta,async()=>{await db.local_meta.delete(pendingMeta);await db.local_meta.delete(draftKey)})
+      attempt.current=null;try{localStorage.removeItem(pendingKey);sessionStorage.removeItem(pendingKey)}catch{/* Confirmed server result remains durable; storage cleanup must not create a new attempt. */}
+      setPendingAttempt(null);setLines({});setTerms('0');setInitialReceipt('0.0');setNextVisit('');setReviewing(false)
+      setSuccess('Thank you! Order #'+result.invoice_no+' submitted.');setSavedInvoice(result.order_id)
+      onSaved(result)
+    }catch(e){handled.current.delete(id);setError('Order accepted, but local cleanup needs retry: '+message(e))}
+  },[draftKey,pendingMeta,pendingKey,onSaved])
+  useEffect(()=>{if(!pendingAttempt)return;const id=pendingAttempt.id;const sub=liveQuery(()=>db.local_meta.get('command-result:'+id)).subscribe({next:row=>{if(!row)return;const ack=JSON.parse(row.value);if(ack.owner_id!==ownerId||!ack.result?.order_id)return;void confirmed(id,ack.result)},error:e=>setError(message(e))});return()=>sub.unsubscribe()},[pendingAttempt,ownerId,confirmed])
+
 
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
   const query = search.trim().toLocaleLowerCase()
-  const visibleProducts = catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine) && (!query || [skuOf(item),brandOf(item),item.product_line,item.sku].join(' ').toLocaleLowerCase().includes(query)))
+  const visibleProducts = catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine) && (!mode || catalogMode(item.product_line)===mode) && (!query || [skuOf(item),brandOf(item),item.product_line,item.sku].join(' ').toLocaleLowerCase().includes(query)))
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
   const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
   let paymentSummary: ReturnType<typeof checkoutBalance> | undefined
@@ -211,6 +233,7 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
     const [savedItems, savedTerms, savedNextVisit, savedReceipt, savedVisit] = JSON.parse(attempt.current.key) as [
       { sku_id: string; quantity: number; price: number; uom: 'pack'; items_per_half_pack: number; packs_per_box: number }[], string, string, string, string,
     ]
+    const submittedId=attempt.current.id
     try {
       await draftWrites.current
       await db.local_meta.put({key:pendingMeta,value:JSON.stringify(attempt.current)})
@@ -227,18 +250,7 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
           method: 'cash',
         },
       })
-      setSuccess('Invoice #' + result.invoice_no + ' created.')
-      setSavedInvoice(result.order_id)
-      setReviewing(false)
-      setLines({})
-      setNextVisit('')
-      setInitialReceipt('0.0')
-      setTerms('0')
-      attempt.current = null
-      setPendingAttempt(null)
-      localStorage.removeItem(pendingKey); sessionStorage.removeItem(pendingKey)
-      await db.local_meta.delete(pendingMeta)
-      onSaved()
+      await confirmed(submittedId,result)
     } catch (failure) {
       setError(navigator.onLine?message(failure):'')
     } finally {
@@ -289,10 +301,12 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
             onClick={() => {setBrand(value);setProductLine('')}}>{value}</button>)}
         </nav>
         <label hidden={!showFilters}>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
-        <p className="muted">Order in 0.5 Pack steps. Each product shows its own pack and box sizes.</p>
+        <div className="catalog-toolbar"><label>Product type<select value={mode} onChange={e=>{setMode(e.target.value);setProductLine('')}}><option value="">All types</option><option value="DTL">DTL · Direct to lung</option><option value="MTL">MTL · Mouth to lung</option></select></label><div className="layout-switch" role="group" aria-label="Product layout"><button type="button" aria-pressed={layout==='list'} onClick={()=>{setLayout('list');try{localStorage.setItem('catalog-layout','list')}catch{}}}>List</button><button type="button" aria-pressed={layout==='grid'} onClick={()=>{setLayout('grid');try{localStorage.setItem('catalog-layout','grid')}catch{}}}>2 columns</button></div></div>
+        <p className="muted catalog-help">Use −/+ in ½ Pack steps. DTL and MTL are product types within a brand.</p>
+        <div className={'catalog-cards '+layout}>
         {visibleProducts?.map(item => <div className="card sku-row" key={item.id}>
-          <ProductImage path={item.image_path} label={skuOf(item)}/>
-          <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(packTotal(item.selling_price, item.items_per_half_pack, 1))} / Pack</p></div>
+          <div className="product-tags"><span>{brandOf(item)}</span><span>{catalogMode(item.product_line)||'Type not set'}</span><span title="Inventory quantities are not tracked yet">Stock not tracked</span></div><ProductImage path={item.image_path} label={skuOf(item)}/>
+          <div className="sku-info"><strong>{skuOf(item)}</strong><p className="product-line-name">{item.product_line}</p><p>{money(packTotal(item.selling_price, item.items_per_half_pack, 1))} / Pack</p></div>
           <div className="stepper-area"><div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}
               onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 0.5) }))}>−</button>
@@ -302,6 +316,7 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
           </div>
           </div>
         </div>)}
+        </div>
         {catalog.data && catalog.data.length > 0 && visibleProducts?.length === 0 && <p role="status">No products match your search and filters.</p>}
         {catalog.data && catalog.data.length > 0 && <div className="cart-total"><div><strong>Cart · {selected.length} {selected.length === 1 ? 'item' : 'items'}</strong><span>{money(total)}</span></div>
           <button type="button" className="primary" disabled={!selected.length} onClick={() => setReviewing(true)}>View Cart <MobileIcon name="cart" size={18}/></button></div>}

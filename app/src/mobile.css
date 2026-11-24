@@ -216,3 +216,68 @@
 .mobile-shell .sku-row .stepper button { width:44px; min-height:44px; }
 .mobile-shell .sku-row .stepper output { min-width:42px; max-width:82px; font-size:12px; }
 @media(max-width:360px){.mobile-shell .sku-row{grid-template-columns:86px minmax(0,1fr);gap:10px}.mobile-shell .sku-row .product-photo{width:86px;height:86px}.mobile-shell .sku-row .sku-info strong{font-size:15px}.mobile-shell .sku-row .stepper{gap:2px}.mobile-shell .sku-row .stepper output{min-width:34px;font-size:11px}}
+
+/* Owner field UX review #91: compact, stable, touch-friendly catalogue and login. */
+.mobile-shell .catalog-cards {display:grid;gap:8px;margin:12px 0 100px}
+.mobile-shell .catalog-cards .sku-row {position:relative;margin:0;padding:40px 12px 12px;grid-template-columns:128px minmax(0,1fr);gap:8px 12px}
+.mobile-shell .catalog-cards .product-tags {position:absolute;top:8px;right:10px;display:flex;justify-content:flex-end;gap:4px;max-width:calc(100% - 20px);flex-wrap:wrap}
+.mobile-shell .product-tags span {font-size:9px;line-height:1.5;padding:2px 6px;border-radius:8px;background:#eef1f5;color:var(--ink);overflow-wrap:anywhere}
+.mobile-shell .product-tags span:last-child {color:#657080}
+.mobile-shell .catalog-cards .sku-row .product-photo {width:128px;height:128px;align-self:center;justify-self:start}
+.mobile-shell .catalog-cards .product-photo img {object-fit:cover}
+.mobile-shell .catalog-toolbar {display:flex;align-items:end;justify-content:space-between;gap:10px}
+.mobile-shell .catalog-toolbar label {font-size:11px;min-width:0;flex:1}
+.mobile-shell .catalog-toolbar select {min-height:44px;font-size:12px;width:100%}
+.mobile-shell .layout-switch {display:flex;gap:3px}
+.mobile-shell .layout-switch button {font-size:11px;padding:8px;min-height:44px}
+.mobile-shell .layout-switch [aria-pressed=true] {background:var(--ink);color:white}
+.mobile-shell .catalog-help {font-size:11px;margin:10px 0}
+.mobile-shell .catalog-cards.grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mobile-shell .catalog-cards.grid .sku-row {display:flex;flex-direction:column;align-items:stretch;padding:50px 8px 8px;gap:8px;min-width:0}
+.mobile-shell .catalog-cards.grid .product-photo {width:100%;height:auto;aspect-ratio:1;align-self:stretch}
+.mobile-shell .catalog-cards.grid .sku-info {flex:1}
+.mobile-shell .catalog-cards.grid .sku-info strong {font-size:14px;overflow-wrap:anywhere}
+.mobile-shell .catalog-cards.grid .sku-info p {font-size:11px;margin:5px 0}
+.mobile-shell .catalog-cards.grid .product-tags {right:6px;left:6px;max-width:none;gap:2px}
+.mobile-shell .catalog-cards.grid .product-tags span {font-size:8px;padding:1px 4px}
+.mobile-shell .catalog-cards.grid .stepper-area {align-self:stretch;max-width:none}
+.mobile-shell .catalog-cards.grid .stepper {display:grid;grid-template-columns:44px minmax(20px,1fr) 44px;gap:0;padding:0;width:100%;max-width:100%}
+.mobile-shell .catalog-cards.grid .stepper output {min-width:0;max-width:none;font-size:10px;overflow-wrap:anywhere;white-space:normal;text-align:center;line-height:1.25}
+.mobile-shell .catalog-cards.grid .stepper button {width:44px;height:44px;padding:0;min-width:0}
+.mobile-shell .order-confirmation {background:#eff8db;border-color:#d5eaa4;margin:12px 0}
+.mobile-shell .order-confirmation>p:first-child {font-size:16px;font-weight:600}
+.invoice-pdf-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.mobile-shell .retail-row .client-identity {min-width:0}
+.mobile-shell .retail-row .client-identity strong {font-size:19px;line-height:1.4;overflow-wrap:anywhere}
+.mobile-shell .retail-row {display:flex;align-items:center;gap:10px}
+.mobile-shell .retail-row .tags {display:none}
+.mobile-shell .retail-row .client-identity>span:nth-child(2) {min-width:0;flex:1}
+.mobile-shell .compact-map {position:relative;margin-left:auto;flex:none}
+.mobile-shell .compact-map>summary {display:grid;place-items:center;width:46px;height:46px;min-height:46px;padding:0;border-radius:14px;background:var(--ink);color:white;list-style:none;cursor:pointer}
+.mobile-shell .compact-map>summary::-webkit-details-marker {display:none}
+.mobile-shell .compact-map .store-navigation {position:absolute;right:0;top:50px;z-index:20;background:white;box-shadow:0 8px 24px #13223826;border:1px solid var(--line);border-radius:12px;padding:8px;min-width:145px;display:grid;gap:6px}
+.mobile-shell.auth-shell {min-height:100svh;display:grid;place-items:center;padding:16px;box-sizing:border-box}
+.mobile-shell .login-layout {width:100%;max-width:420px;display:grid;gap:12px;padding:0;margin:auto}
+.mobile-shell .login-hero {padding:0;background:none;color:var(--ink);text-align:center;border-radius:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.mobile-shell .login-hero h1 {font-size:25px;line-height:1.2;margin:0}
+.mobile-shell .login-hero p {display:none}
+.mobile-shell .login-animation {width:90px;height:90px;position:relative;order:-1;display:grid;place-items:center}
+.mobile-shell .login-animation>div {position:absolute;inset:0}
+.mobile-shell .login-animation:has(svg:not(.mobile-icon))>.mobile-icon {opacity:0}
+.mobile-shell .login-layout .auth-sheet {width:100%;max-width:none;margin:0;padding:20px;box-sizing:border-box}
+.mobile-shell .login-layout .auth-sheet h2 {font-size:22px;margin:0 0 6px;text-align:center}
+.mobile-shell .login-layout .auth-sheet>.muted {text-align:center;font-size:12px;margin:0 0 16px}
+.mobile-shell .login-layout .form {gap:12px}
+.mobile-shell .login-layout input {min-height:46px;font-size:16px}
+.mobile-shell .login-layout .account-trust {font-size:10px;margin:12px 0 0;justify-content:center}
+.mobile-shell .login-layout .form label {font-size:12px}
+@media(max-width:360px){.mobile-shell .catalog-cards.list .sku-row{grid-template-columns:112px minmax(0,1fr);gap:8px;padding:40px 10px 10px}.mobile-shell .catalog-cards.list .product-photo{width:112px;height:112px}.mobile-shell .catalog-cards.list .sku-info strong{font-size:15px}.mobile-shell .catalog-cards.list .stepper{padding:0;gap:0}.mobile-shell .catalog-cards.list .stepper output{min-width:26px;max-width:52px;font-size:10px;white-space:normal}.mobile-shell .catalog-toolbar{align-items:stretch;flex-direction:column}.mobile-shell .layout-switch{justify-content:flex-end}.mobile-shell .retail-row .client-avatar{display:none}}
+@media(max-height:700px){.mobile-shell .login-hero h1{font-size:21px}.mobile-shell .login-animation{width:62px;height:62px}.mobile-shell .login-layout{gap:8px}.mobile-shell .login-layout .auth-sheet{padding:16px}.mobile-shell .login-layout .form{gap:8px}.mobile-shell .login-layout .account-trust{margin-top:8px}}
+@media(max-height:520px) and (orientation:landscape){.mobile-shell .login-layout{max-width:760px;grid-template-columns:1fr 1.2fr;align-items:center}}
+.mobile-shell .catalog-cards.grid .sku-row {flex-wrap:nowrap}
+.mobile-shell .catalog-cards.grid .stepper-area {flex-basis:auto;min-width:0;width:100%;margin:0}
+.mobile-shell .catalog-cards.grid .product-photo {box-sizing:border-box}
+.mobile-shell.auth-shell {background:var(--bg)}
+.mobile-shell .login-hero {min-height:0;overflow:visible}
+.mobile-shell .login-layout .auth-sheet {gap:8px;border-radius:22px}
+.mobile-shell .login-hero h1 {display:none}
