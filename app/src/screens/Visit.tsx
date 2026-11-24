@@ -1,3 +1,5 @@
+import {RetailTag} from './RetailTag'
+import {retailReference} from '../lib/retail-reference'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { db } from '../lib/db'
@@ -59,7 +61,7 @@ export function Visit({ repId, onSaved }: { repId: string; onSaved: () => void }
   return (
     <main>
       <h1>{outlet.retail_name}</h1>
-      <p className="muted">{outlet.area} · {outlet.outlet_type}</p>
+      <RetailTag {...retailReference(outlet.id,[outlet])}/><p className="muted">{outlet.area} · {outlet.outlet_type}</p>
       <ClientLocation retail={outlet} />
       <nav className="steps" aria-label="Visit steps">
         {steps.map((label, i) => (
@@ -98,7 +100,7 @@ export function Visit({ repId, onSaved }: { repId: string; onSaved: () => void }
         <section>
           <h2>{t.visit.lastVisits}</h2>
           <ul className="plain">
-            {history.map((v) => <li key={v.id}>{day(v.checked_in_at)} · {t.visit.outcomes[v.outcome]}</li>)}
+            {history.map((v) => <li key={v.id}><RetailTag {...retailReference(outlet.id,[outlet])}/> · {day(v.checked_in_at)} · {t.visit.outcomes[v.outcome]}</li>)}
           </ul>
         </section>
       )}

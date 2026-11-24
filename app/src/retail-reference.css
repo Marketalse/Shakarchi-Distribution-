@@ -1,0 +1,4 @@
+.retail-reference{display:inline-flex;flex-direction:column;align-items:flex-start;max-width:100%;vertical-align:middle;gap:3px;text-align:start}
+.retail-reference-name{display:inline-block;max-width:100%;padding:4px 9px;background:#edf2e2;color:#1D2A44;border:1px solid #dce5ca;border-radius:8px;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
+.retail-reference>small{display:block;font-size:10px;color:#687386;overflow-wrap:anywhere;line-height:1.4}
+.mobile-shell .retail-reference-name{font-size:12px}

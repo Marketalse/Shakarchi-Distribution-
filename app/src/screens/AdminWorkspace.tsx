@@ -1,3 +1,5 @@
+import {RetailTag} from './RetailTag'
+import {retailReference,invoiceRetailReference,paymentRetailReference} from '../lib/retail-reference'
 import {ManagerHome, ManagerActivity, ManagerClientContext} from './ManagerPages';
 import {managerNavigation} from '../lib/manager-workspace';
 import {AdminAdvisor} from './AdminAdvisor';
@@ -142,7 +144,7 @@ function InvoiceTable({
 <td>
 <Link to={'/admin/orders?invoice=' + invoice.id}>{adminInvoiceLabel(invoice)}</Link>
 </td>
-<td>{invoice.recipient_snapshot?.name || data.clients.find(c => c.id === invoice.outlet_id)?.retail_name || 'Historical client'}</td>{!compact && <td>{date(invoice.created_at)}</td>}<td>{formatUsd(invoice.total)}</td>{!compact && <td>{formatUsd(invoice.outstanding)}</td>}<td>
+<td><RetailTag {...invoiceRetailReference(invoice,data.clients)}/></td>{!compact && <td>{date(invoice.created_at)}</td>}<td>{formatUsd(invoice.total)}</td>{!compact && <td>{formatUsd(invoice.outstanding)}</td>}<td>
 <Status value={invoice.payment_status} />
 </td>
 </tr>)}</tbody>
@@ -166,7 +168,7 @@ function FieldOperations() {
  <Metric label="Market observations" value={result.observations} detail="Separate from survey-form responses" />
  </div>
  <p className="admin-subtle">An order and survey at one stop count as one visit. Dates reflect when work was recorded online. Offline work may appear on its upload date.</p>
- <details><summary>Recent confirmed activity</summary>{result.activity.length?<div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Recorded · Baghdad</th><th>Client</th><th>Activity</th></tr></thead><tbody>{result.activity.map(row=><tr key={row.key}><td>{recorded(row.at)}</td><td><Link to={'/admin/clients/'+row.outlet_id}>{data.clients.find(c=>c.id===row.outlet_id)?.retail_name||'Client unavailable'}</Link></td><td>{row.kind}</td></tr>)}</tbody></table></div>:<p>No confirmed activity in this period.</p>}</details>
+ <details><summary>Recent confirmed activity</summary>{result.activity.length?<div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Recorded · Baghdad</th><th>Client</th><th>Activity</th></tr></thead><tbody>{result.activity.map(row=><tr key={row.key}><td>{recorded(row.at)}</td><td><Link to={'/admin/clients/'+row.outlet_id}><RetailTag {...retailReference(row.outlet_id,data.clients)}/></Link></td><td>{row.kind}</td></tr>)}</tbody></table></div>:<p>No confirmed activity in this period.</p>}</details>
  </>}
  </Panel>
 }
@@ -361,7 +363,7 @@ function AgingPanel() {
  {error?<p role="alert" className="error">{error}</p>:report&&<>
  <p>As of {report.today} · Total outstanding {formatUsd(report.total)}</p>
  <div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Age</th><th>Invoices</th><th>Outstanding · USD</th></tr></thead><tbody>{report.buckets.map(b=><tr key={b.label}><td>{b.label}</td><td>{b.count}</td><td>{formatUsd(b.amount)}</td></tr>)}</tbody></table></div>
- <details><summary>Open invoices by client</summary><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Client</th><th>Invoice</th><th>Due date</th><th>Age</th><th>Outstanding · USD</th></tr></thead><tbody>{report.rows.map(({invoice,bucket})=><tr key={invoice.id}><td><Link to={'/admin/clients/'+invoice.outlet_id}>{data.clients.find(c=>c.id===invoice.outlet_id)?.retail_name||invoice.recipient_snapshot?.name||'Client unavailable'}</Link></td><td><Link to={'/admin/orders?invoice='+invoice.id}>{adminInvoiceLabel(invoice)}</Link></td><td>{invoice.due_date??'Unknown'}</td><td>{bucket}</td><td>{formatUsd(invoice.outstanding)}</td></tr>)}</tbody></table></div></details>
+ <details><summary>Open invoices by client</summary><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Client</th><th>Invoice</th><th>Due date</th><th>Age</th><th>Outstanding · USD</th></tr></thead><tbody>{report.rows.map(({invoice,bucket})=><tr key={invoice.id}><td><Link to={'/admin/clients/'+invoice.outlet_id}><RetailTag {...invoiceRetailReference(invoice,data.clients)}/></Link></td><td><Link to={'/admin/orders?invoice='+invoice.id}>{adminInvoiceLabel(invoice)}</Link></td><td>{invoice.due_date??'Unknown'}</td><td>{bucket}</td><td>{formatUsd(invoice.outstanding)}</td></tr>)}</tbody></table></div></details>
  </>}
  </Panel>
 }
@@ -401,7 +403,7 @@ function Collections() {
 <td>
 <Link to={'/admin/orders?invoice=' + i.id}>{adminInvoiceLabel(i)}</Link>
 </td>
-<td>{i.recipient_snapshot?.name || 'Historical client'}</td>
+<td><RetailTag {...invoiceRetailReference(i,data.clients)}/></td>
 <td>{reminder?.scheduled_at ? date(reminder.scheduled_at) : 'Not scheduled'}</td>
 <td>{formatUsd(i.outstanding)}</td>
 <td>
@@ -418,6 +420,7 @@ function Collections() {
 <tr>
 <th>Recorded</th>
 <th>Event</th>
+<th>Retail</th>
 <th>Amount · USD</th>
 <th>Invoice</th>
 </tr>
@@ -425,6 +428,7 @@ function Collections() {
 <tbody>{[...data.cash].sort((a, b) => b.collected_at.localeCompare(a.collected_at)).map(row => <tr key={row.id}>
 <td>{date(row.collected_at)}</td>
 <td>{row.entry_type}</td>
+<td><RetailTag {...paymentRetailReference(row,data.invoices,data.clients)}/></td>
 <td>{formatUsd(row.amount)}</td>
 <td>{row.order_id ? <Link to={'/admin/collections?invoice=' + row.order_id}>History & corrections</Link> : 'Unallocated'}</td>
 </tr>)}</tbody>
