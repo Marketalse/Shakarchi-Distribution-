@@ -6,7 +6,7 @@ export function productBounds(width:number,height:number,pixels:Uint8ClampedArra
  const corners=[0,width-1,(height-1)*width,width*height-1]
  const transparent=corners.every(i=>pixels[i*4+3]<16)
  const background=[0,1,2].map(c=>corners.reduce((sum,i)=>sum+pixels[i*4+c],0)/4)
- const matches=(i:number)=>pixels[i*4+3]<16||(!transparent&&pixels[i*4+3]>240&&background.every((v,c)=>Math.abs(pixels[i*4+c]-v)<28))
+ const matches=(i:number)=>pixels[i*4+3]<16||(!transparent&&pixels[i*4+3]>240&&background.every((v,c)=>Math.abs(pixels[i*4+c]-v)<12))
  if(!transparent&&corners.some(i=>!matches(i)))return full
  // Only remove matching background connected to the outside; preserve internal details.
  const seen=new Uint8Array(width*height),queue=new Int32Array(width*height);let end=0,head=0
@@ -22,4 +22,12 @@ export function productBounds(width:number,height:number,pixels:Uint8ClampedArra
  left=Math.max(0,left-pad);top=Math.max(0,top-pad);right=Math.min(width-1,right+pad);bottom=Math.min(height-1,bottom+pad)
  return {x:left,y:top,width:right-left+1,height:bottom-top+1}
 }
-export function fitProduct(bounds:ImageBounds,size=768){const usable=size*.9,scale=Math.min(usable/bounds.width,usable/bounds.height);return {x:(size-bounds.width*scale)/2,y:(size-bounds.height*scale)/2,width:bounds.width*scale,height:bounds.height*scale}}
+/** Expand around the retained subject and shadow using only pixels from the original photo. */
+export function squareProductCrop(bounds:ImageBounds,width:number,height:number):ImageBounds{
+ const full={x:0,y:0,width,height}
+ if(bounds.width===width&&bounds.height===height)return full
+ const required=Math.max(bounds.width,bounds.height)
+ if(required>Math.min(width,height))return full
+ const size=Math.min(Math.min(width,height),Math.ceil(required*1.08))
+ return {x:Math.max(0,Math.min(width-size,Math.floor(bounds.x+bounds.width/2-size/2))),y:Math.max(0,Math.min(height-size,Math.floor(bounds.y+bounds.height/2-size/2))),width:size,height:size}
+}

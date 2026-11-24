@@ -1,4 +1,4 @@
-import {productBounds,fitProduct} from './product-framing'
+import {productBounds,squareProductCrop} from './product-framing'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {LocalDb} from './db'
 import {offlineOwner} from './offline'
@@ -18,12 +18,11 @@ export async function normaliseProductImage(file:File,autoCrop=true):Promise<Blo
   const analysis=probe.getContext('2d',{willReadFrequently:true});if(!analysis)throw Error('Image preparation unavailable in this browser.')
   analysis.drawImage(image,0,0,probe.width,probe.height)
   const found=autoCrop?productBounds(probe.width,probe.height,analysis.getImageData(0,0,probe.width,probe.height).data):{x:0,y:0,width:probe.width,height:probe.height}
-  const source={x:found.x*image.width/probe.width,y:found.y*image.height/probe.height,width:found.width*image.width/probe.width,height:found.height*image.height/probe.height}
-  const canvas=document.createElement('canvas');canvas.width=768;canvas.height=768
+  const detected={x:found.x*image.width/probe.width,y:found.y*image.height/probe.height,width:found.width*image.width/probe.width,height:found.height*image.height/probe.height}
+  const source=autoCrop?squareProductCrop(detected,image.width,image.height):detected
+  const canvas=document.createElement('canvas'),outputScale=Math.min(1,768/Math.max(source.width,source.height));canvas.width=Math.max(1,Math.round(source.width*outputScale));canvas.height=Math.max(1,Math.round(source.height*outputScale))
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Image preparation unavailable in this browser.')
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,768,768)
-  const fit=fitProduct(source)
-  ctx.drawImage(image,source.x,source.y,source.width,source.height,fit.x,fit.y,fit.width,fit.height)
+  ctx.drawImage(image,source.x,source.y,source.width,source.height,0,0,canvas.width,canvas.height)
   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Could not prepare image.')),'image/webp',.85))
   await validateProductImageBytes(blob);return blob
  }finally{image.close()}

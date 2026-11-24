@@ -1,5 +1,5 @@
 .product-photo { display:grid; place-items:center; width:112px; height:112px; background:#F0F2F4; border:1px solid #E6E9EE; border-radius:16px; overflow:hidden; color:#1D2A44; }
-.product-photo img { display:block; width:100%; height:100%; object-fit:contain; background:white; }
+.product-photo img { display:block; width:100%; height:100%; object-fit:contain; background:transparent; }
 .product-image-editor { display:grid; gap:16px; }
 .product-image-editor label { display:grid; gap:8px; }
 .product-image-editor .product-photo { width:180px; height:180px; }
