@@ -1,9 +1,12 @@
+import {useNavigate} from 'react-router-dom'
+import {LoginAnimation} from './LoginAnimation'
 import { useState, type FormEvent } from 'react'
 import { MobileIcon } from './MobileIcon'
 import { supabase } from '../lib/supabase'
 import { en as t } from '../i18n/en'
 
-export function Login() {
+export function Login({landing='/dashboard'}:{landing?:string|null}={}) {
+  const navigate=useNavigate()
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,6 +21,7 @@ export function Login() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     if (error) setError(t.login.failed)
+    else if(landing)navigate(landing,{replace:true})
     setBusy(false)
   }
 
@@ -64,7 +68,7 @@ export function Login() {
 
   return (
     <main className="login-layout">
-      <section className="login-hero"><span className="login-brand">Shakarchi</span><h1>Your business,<br />in good hands.</h1><p>A little clarity. A lot of possibility.</p><img src="/mobile-assets/file.webp" alt="" width="112" height="112" /></section>
+      <section className="login-hero">{landing===null&&<span className="login-brand">Shakarchi</span>}<h1>Your business,<br />in good hands.</h1><p>A little clarity. A lot of possibility.</p>{landing===null?<img src="/mobile-assets/file.webp" alt="" width="112" height="112"/>:<LoginAnimation/>}</section>
       <section className="auth-sheet"><h2>Welcome back</h2><p className="muted">Sign in to your owner account.</p>
       {!supabase && <p className="error">{t.notConnected}</p>}
       <form onSubmit={signIn} className="form">

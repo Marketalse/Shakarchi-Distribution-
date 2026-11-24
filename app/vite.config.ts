@@ -20,7 +20,7 @@ export default defineConfig(({mode}) => {
         theme_color: '#132238',
         background_color: '#F5F7F9',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/dashboard',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },

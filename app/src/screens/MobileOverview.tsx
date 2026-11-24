@@ -18,8 +18,8 @@ export function MobileOverview({ version }: { version: number }) {
     <section className="sales-hero"><p>Field workspace</p><strong>Ready for your next visit.</strong><span>Capture once. Keep moving.</span></section>
     {current && state.error && <p role="alert" className="error">{state.error}</p>}
     <Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link>
-    <Link className="button" to="/"><MobileIcon name="shop" size={20} />Choose client for order or survey</Link>
+    <Link className="button primary" to="/?action=order"><MobileIcon name="cart" size={20} />Create order & survey</Link>
     <div className="overview-metrics"><Link to="/" className="overview-metric soft"><MobileIcon name="shop" /><span>Clients on this device</span><strong>{current ? state.clients ?? '—' : '—'}</strong></Link><Link to="/" className="overview-metric"><MobileIcon name="invoice" /><span>Survey drafts on this device</span><strong>{current ? state.drafts ?? '—' : '—'}</strong></Link></div>
-    <p className="muted">Use Sync to send saved work. Reports and settings are in the admin website.</p>
+    <p className="muted">Use Sync to send saved work. Your submitted work appears in the manager portal.</p>
   </main>
 }

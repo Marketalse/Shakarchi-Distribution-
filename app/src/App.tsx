@@ -42,7 +42,7 @@ export default function App() {
     <div className={`app-shell mobile-shell ${!repId || recovering ? 'auth-shell' : ''}`}>
       {repId && !recovering && <header className="top">
         <div>
-          <Link to={repId ? '/dashboard' : '/'} className="wordmark">Shakarchi Distribution</Link>
+          
           <h1>{repId ? recovering ? 'New password' : title : 'Sign in'}</h1>
           <p>{pathname === '/dashboard' ? 'Let’s make it count.' : pathname === '/' ? 'Every relationship matters.' : pathname === '/orders' ? 'Your invoices, all in one place.' : pathname === '/outlets/new' ? 'Start a new relationship.' : pathname === '/me' ? 'Your account and tools.' : 'Your wholesale workspace'}</p>
         </div>

@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.119.0",
     "@vercel/oidc": "^4.0.9",
     "dexie": "^4.4.7",
+    "jspdf": "4.2.1",
+    "lottie-web": "5.13.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5"
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "fake-indexeddb": "^6.2.8",
+    "jsdom": "31.0.1",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",

@@ -1,3 +1,4 @@
+import {automaticSku} from '../lib/automatic-sku'
 import {RetailTag} from './RetailTag'
 import {invoiceRetailReference,retailReferenceText} from '../lib/retail-reference'
 import {liveQuery} from 'dexie'
@@ -123,6 +124,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
   } catch { convertedAmount = 'Enter a valid amount' }
 
 
+  const [generatedSku,setGeneratedSku]=useState(()=> 'SKU-'+crypto.randomUUID().toUpperCase())
   async function perform(label: string, request: unknown, send: (command: Operation<unknown>) => Promise<unknown>) {
     if (busy) return
     if (pending.current && (pending.current.label !== label || JSON.stringify(pending.current.command.request) !== JSON.stringify(request))) {
@@ -140,8 +142,9 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
       setPendingView(null)
       localStorage.removeItem('wsd-owner-pending-operation'); sessionStorage.removeItem('wsd-owner-pending-operation')
       if(label==='Import')setPreview(undefined)
+      if(label==='Product')setGeneratedSku('SKU-'+crypto.randomUUID().toUpperCase())
       setNotice(label + ' saved')
-      setRevision(value => value + 1);onChanged?.()
+      setRevision(value => value + 1);onChanged?.();return true
     } catch (failure) {
       const code = (failure as Error & { code?: string }).code
       setError(label === 'Parallel market rate' && code === 'P0001' ? 'Enter a rate above 0 and a future expiry.' : (failure as Error).message)
@@ -191,7 +194,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
           break
         case 'product': {
           const product = {
-            sku: get('sku'), product_line: get('product_line'), flavour: get('flavour'), brand_id: get('brand_id'),
+            sku: automaticSku(editProduct?.sku,pending.current,generatedSku), product_line: get('product_line'), flavour: get('flavour'), brand_id: get('brand_id'),
             is_own_brand: Boolean(productBrand?.is_own),
             selling_price: productBrand?.is_own ? get('selling_price') || null : null,
             items_per_half_pack: get('items_per_half_pack'), packs_per_box: get('packs_per_box'), puffs: get('puffs') || null, units_per_carton: get('units_per_carton') || null,
@@ -204,8 +207,9 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
             await perform('Product update', { ...product, id: editProduct.id, currency: 'USD' },
               command => api.updateProduct(command as Parameters<typeof api.updateProduct>[0]))
           } else {
-            await perform('Product', { currency: 'USD', kind: 'products', rows: [product] },
+            const saved=await perform('Product', { currency: 'USD', kind: 'products', rows: [product] },
               command => api.importData(command as Parameters<typeof api.importData>[0]))
+            if(saved){form.reset();setProductBrandId(undefined)}
           }
           break
         }
@@ -249,7 +253,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
     try {
       const { error } = await supabase.from('survey_brands').update({ active: !brand.active }).eq('id', brand.id)
       if (error) throw Error(error.message)
-      setRevision(value => value + 1);onChanged?.()
+      setRevision(value => value + 1);onChanged?.();return true
     } catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
@@ -362,7 +366,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
       {editorOnly && <Link className="admin-secondary" to="/admin/catalog">Back to catalog</Link>}
       {editProduct && !editorOnly && <button onClick={() => { setEditProduct(undefined); setProductBrandId('') }}>New product</button>}
       <form {...formProps} data-kind="product" key={editProduct?.id || 'new'}>
-        <label>SKU<input name="sku" defaultValue={format(editProduct?.sku === undefined ? '' : editProduct.sku)} required /></label>
+        <p className="muted">{editProduct?.sku ? `SKU: ${editProduct.sku}` : 'SKU is generated automatically when you save.'}</p>
         <label>Product line<input list="brand-product-lines" name="product_line" defaultValue={String(editProduct?.product_line || '')} required /></label>
         <label>Variant<input name="flavour" defaultValue={String(editProduct?.flavour || '')} required /></label>
         <datalist id="brand-product-lines">{records('product_lines').filter(row=>row.brand_id===productBrandId).map(row=><option key={String(row.id)} value={String(row.name)} />)}</datalist>

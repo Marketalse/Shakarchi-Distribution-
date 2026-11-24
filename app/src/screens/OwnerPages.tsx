@@ -1,3 +1,4 @@
+import {InvoicePdfActions} from './InvoicePdfActions'
 import {RetailTag} from './RetailTag'
 import {invoiceRetailReference} from '../lib/retail-reference'
 import type {Outlet} from '../lib/types'
@@ -119,8 +120,8 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <div className="summary-line"><span>Collected</span><strong>{money(selected.collected)}</strong></div>
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>
       </section>
-      <button className="primary" onClick={() => void share()}>Share invoice summary</button>
-      <Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>
+      <InvoicePdfActions invoiceId={selected.id}/><button onClick={() => void share()}>Share text summary</button>
+      {embedded&&<Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>}
     </> : <>
       <nav className="retail-tabs" aria-label="Order list">
         {['All orders', 'Pending invoices'].map(value =>
