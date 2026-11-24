@@ -34,7 +34,7 @@ export function AdminClients({embedded=false,onChanged}:{embedded?:boolean;onCha
     {error && <p role="alert" className="error">{error}</p>}
     {outletId ? client ? <>
       <Link to="/admin/clients">All clients</Link><h2>{client.retail_name}</h2>
-      <ClientOverdue outletId={client.id} revision={revision} admin/>
+      <ClientOverdue retailName={client.retail_name} outletId={client.id} revision={revision} admin/>
       <ClientEdit key={client.id+client.updated_at} retail={client} hideHeading={embedded} onSaved={()=>{setRevision(v=>v+1);onChanged?.()}}/>
       <ClientLocation retail={client} allowCorrection onUpdated={()=>{setRevision(v=>v+1);onChanged?.()}}/>
     </> : <p>Client unavailable. Sync your records and try again.</p> : <>

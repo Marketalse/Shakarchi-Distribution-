@@ -8,6 +8,7 @@ export type AdminInvoice = Balance & {
   created_at: string;
 };
 export type AdminCash = CashEntry & {
+  outlet_id?: string;
   collected_at: string;
   entry_type: string;
   method: string;
@@ -78,7 +79,7 @@ export async function adminRows<T>(client: SupabaseClient, table: string, column
   }
 }
 export async function loadAdminData(client: SupabaseClient): Promise<AdminData> {
-  const [clients, invoices, cash, reminders, products, surveys, runs, observations,visits,invoiceLines] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,selling_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price'),adminRows<RecordedVisit>(client,'visits','id,outlet_id,checked_in_at,checked_out_at'),adminRows<ProfitLine>(client,'order_lines','id,order_id,product_id,kind,quantity,unit_price,unit_cost,line_total,product_snapshot')]);
+  const [clients, invoices, cash, reminders, products, surveys, runs, observations,visits,invoiceLines] = await Promise.all([adminRows<AdminData['clients'][number]>(client, 'outlets', '*'), adminRows<AdminInvoice>(client, 'solo_invoice_balances', 'id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot,created_at'), adminRows<AdminCash>(client, 'payments', 'id,outlet_id,order_id,amount,collected_at,entry_type,method,note'), adminRows<Reminder>(client, 'collection_reminders', 'order_id,status,scheduled_at', 'order_id'), adminRows<AdminProduct>(client, 'products', 'id,sku,brand,brand_id,product_line,flavour,active,is_own_brand,currency,selling_price'), adminRows<AdminSurvey>(client, 'survey_versions', 'id,title,questions,created_at'), adminRows<AdminRun>(client, 'survey_runs', 'id,version_id,outlet_id,created_at,answers'), adminRows<AdminData['observations'][number]>(client, 'market_observations', 'id,outlet_id,created_at,brand,kind,price'),adminRows<RecordedVisit>(client,'visits','id,outlet_id,checked_in_at,checked_out_at'),adminRows<ProfitLine>(client,'order_lines','id,order_id,product_id,kind,quantity,unit_price,unit_cost,line_total,product_snapshot')]);
   currentReport(invoices, cash, reminders, new Date());
   return {
     visits,

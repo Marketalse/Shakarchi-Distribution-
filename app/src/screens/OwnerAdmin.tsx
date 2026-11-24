@@ -1,3 +1,5 @@
+import {RetailTag} from './RetailTag'
+import {invoiceRetailReference,retailReferenceText} from '../lib/retail-reference'
 import {liveQuery} from 'dexie'
 import {db} from '../lib/db'
 import {offlineOwner} from '../lib/offline'
@@ -308,10 +310,11 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
       <label>Invoice<select value={orderId} onChange={event => setOrderId(event.target.value)}>
         <option value="">Choose invoice</option>
         {records('solo_invoice_balances').map(row => <option key={row.id} value={row.id}>
-          #{format(row.invoice_no)} · {format(row.payment_status)} · {format(row.outstanding)} USD
+          {retailReferenceText(invoiceRetailReference(row,records('outlets')))} · Invoice #{format(row.invoice_no)} · {format(row.payment_status)} · {format(row.outstanding)} USD
         </option>)}
       </select></label>
       {invoice && <>
+        <p><RetailTag {...invoiceRetailReference(invoice,records('outlets'))}/></p>
         <dl className="metrics">
           {['total', 'collected', 'outstanding', 'overpayment'].map(key => <div key={key}><dt>{key}</dt><dd>{format(invoice[key])} USD</dd></div>)}
         </dl>
@@ -328,7 +331,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
           </>}
           <label>Method<select name="method"><option value="cash">Cash</option><option value="transfer">Transfer</option></select></label>
           <label>Original receipt for refund or correction<select name="receipt_id" value={receiptId} onChange={event => setReceiptId(event.target.value)}><option value="">Choose receipt</option>
-            {receipts.map(row => <option key={row.id} value={row.id}>{format(row.amount)} · {date(row.collected_at)} · {row.id}</option>)}
+            {receipts.map((row,index) => <option key={row.id} value={row.id}>{retailReferenceText(invoiceRetailReference(invoice,records('outlets')))} · Receipt {index+1} · {format(row.amount)} · {date(row.collected_at)}</option>)}
           </select></label>
           <label>Reason for refund or correction<input name="reason" /></label>
           {submitButton}
@@ -340,7 +343,7 @@ export function OwnerAdmin({section,embedded=false,onChanged,productId,editorOnl
           <button disabled={busy || Number(invoice.outstanding) <= 0}>Reschedule</button>
         </form>
         <h2 id="cash-history">Cash history</h2>
-        <ul>{ledger.map(row => <li key={row.id}>{format(row.entry_type)} · {format(row.amount)} USD · {date(row.collected_at)} · {format(row.note)}</li>)}</ul>
+        <ul>{ledger.map(row => <li key={row.id}><RetailTag {...invoiceRetailReference(invoice,records('outlets'))}/> · {format(row.entry_type)} · {format(row.amount)} USD · {date(row.collected_at)} · {format(row.note)}</li>)}</ul>
         <h2>Local cash snapshots</h2>
         <ul>{records('payment_fx_snapshots').filter(row => ledger.some(entry => entry.operation_id === row.operation_id)).map(row =>
           <li key={String(row.operation_id)}>{format(row.source_amount)} IQD → {formatUsd(String(row.usd_amount))}<br />

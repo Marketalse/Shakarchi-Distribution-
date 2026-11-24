@@ -111,7 +111,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
         {['Summary', 'Order', 'Payments', 'Survey forms', 'Profile', 'Survey'].map((label) =>
           <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label === 'Summary' ? 'Visit workspace' : label}</button>)}
       </nav>
-      {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
+      {tab === 'Profile' && <><ClientOverdue retailName={retail.retail_name} outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
       {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/></details></>}
       {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
@@ -139,7 +139,7 @@ function Summary({ retail, revision }: { retail: Outlet; revision: number }) {
       <div><dt>Next visit</dt><dd>{reminder ?? (data ? 'No upcoming visit' : '—')}</dd></div>
     </dl>
     {error ? <p className="error" role="alert">{error}</p> : !data && <p role="status">Loading summary…</p>}
-    <details className="retail-disclosure"><summary>Financial Overview <span>⌄</span></summary><ClientOverdue outletId={retail.id} revision={revision}/></details>
+    <details className="retail-disclosure"><summary>Financial Overview <span>⌄</span></summary><ClientOverdue retailName={retail.retail_name} outletId={retail.id} revision={revision}/></details>
     <ClientInvoiceHistory outletId={retail.id} revision={revision}/>
   </>
 }

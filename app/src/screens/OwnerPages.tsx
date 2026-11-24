@@ -1,3 +1,6 @@
+import {RetailTag} from './RetailTag'
+import {invoiceRetailReference} from '../lib/retail-reference'
+import type {Outlet} from '../lib/types'
 import {liveQuery} from 'dexie'
 import {db} from '../lib/db'
 import {fieldTable} from '../lib/offline'
@@ -28,6 +31,8 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
   const [params,setParams]=useSearchParams()
   const invoiceId=params.get('invoice')
   const [invoices, setInvoices] = useState<Invoice[]>()
+  const [retails,setRetails]=useState<Outlet[]>([])
+  useEffect(()=>{const sub=liveQuery(()=>db.outlets.toArray()).subscribe({next:setRetails,error:()=>setRetails([])});return()=>sub.unsubscribe()},[])
   const [lineState, setLineState] = useState<{id:string;rows?:InvoiceLine[];error?:string;clientName?:string}>()
   const [filter, setFilter] = useState('Pending invoices')
   const [selected, setSelected] = useState<Invoice>()
@@ -104,6 +109,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
   return <main>
     {selected ? <>
       <button className="link" onClick={() => { setSelected(undefined);setParams({}); setLineState(undefined); setNotice('') }}>Back to orders</button>
+      <p><RetailTag {...invoiceRetailReference(selected,retails)}/></p>
       <section className="invoice-paper">
         <header className="invoice-brand">{logo && <img src={logo} alt="Shakarchi Distribution logo" onError={event=>{event.currentTarget.hidden=true}} />}<strong>Shakarchi Distribution</strong></header>
         <div className="row"><h2>Invoice #{selected.invoice_no}</h2><span className="tag">{selected.payment_status}</span></div>
@@ -126,7 +132,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <p>Choose a retail to create an order.</p><Link className="button primary" to="/">Open retails</Link></div>}
       <ul className="list">{shown?.map(invoice => <li key={invoice.id}>
         <button className="card card-link wide" onClick={() => { setSelected(invoice); setError('') }}>
-          <span><strong>{invoice.recipient_snapshot?.name || 'Invoice #' + invoice.invoice_no}</strong><br />
+          <span><RetailTag {...invoiceRetailReference(invoice,retails)}/><br />
             <small className="muted">#{invoice.invoice_no} · {day(invoice.created_at)}<br />Balance {money(invoice.outstanding)}</small></span>
           <span className={'tag ' + (invoice.payment_status === 'Paid' ? 'ok' : 'warn')}>{invoice.payment_status}</span>
         </button>
