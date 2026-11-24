@@ -1,0 +1,20 @@
+import 'fake-indexeddb/auto'
+import {afterEach,describe,expect,it,vi} from 'vitest'
+import {LocalDb} from './db'
+import {bindWorkspaceOwner,openCaptureSession,newSurveyDraft,saveSurveyDraft} from './capture-store'
+import {visitPayments,lastCompletedVisit,visitRows,localVisitWork,type VisitInvoice} from './visit-workspace'
+const at=new Date('2026-11-24T10:00:00Z')
+const invoice=(id:string,due_date:string|null,outstanding='10.10',outlet_id='client'):VisitInvoice=>({id,invoice_no:1,outlet_id,due_date,outstanding,total:'10.10',created_at:'2026-11-23T12:00:00Z'})
+const dbs:LocalDb[]=[]
+async function setup(){const db=new LocalDb('visit-prep-'+crypto.randomUUID());dbs.push(db);await bindWorkspaceOwner(db,'owner');return db}
+afterEach(async()=>{vi.unstubAllGlobals();for(const db of dbs.splice(0))await db.delete()})
+describe('read-only visit preparation',()=>{
+ it('includes every unpaid invoice but keeps due today and unknown dates out of overdue',()=>{const rows=[invoice('old','2026-11-23'),invoice('today','2026-11-24'),invoice('unknown',null),invoice('paid','2026-11-20','0.00'),invoice('other','2026-11-20','100.00','other')];const r=visitPayments(rows,'client',at);expect(r.pending).toHaveLength(3);expect(r.outstanding).toBe('30.30');expect(r.overdue).toBe('10.10');expect(r.unknown).toBe(1)})
+ it('rejects duplicate financial identities rather than doubling a balance',()=>{expect(()=>visitPayments([invoice('same',null),invoice('same',null)],'client',at)).toThrow('Duplicate invoice')})
+ it('chooses only the customer’s latest completed visit, excluding unfinished stops',()=>{expect(lastCompletedVisit([{id:'open',outlet_id:'client',checked_in_at:'2026-11-24T09:00:00Z',checked_out_at:null},{id:'done',outlet_id:'client',checked_in_at:'2026-11-23T09:00:00Z',checked_out_at:'2026-11-23T10:00:00Z'},{id:'other',outlet_id:'other',checked_in_at:'2026-11-24T09:00:00Z',checked_out_at:'2026-11-24T10:00:00Z'}],'client')?.id).toBe('done')})
+ it('rejects invalid visit chronology',()=>{expect(()=>lastCompletedVisit([{id:'bad',outlet_id:'client',checked_in_at:'2026-11-24T10:00:00Z',checked_out_at:'2026-11-24T09:00:00Z'}],'client')).toThrow('Visit dates')})
+ it('uses owner-bound cached rows offline without starting a visit',async()=>{const db=await setup();vi.stubGlobal('navigator',{onLine:false});await db.local_meta.put({key:'field-table:owner:solo_invoice_balances',value:JSON.stringify({at:'2026-11-23T12:00:00Z',rows:[invoice('one',null),invoice('other',null,'50.00','other')]})});const result=await visitRows<VisitInvoice>(db,null,'owner','client','solo_invoice_balances','*');expect(result.rows.map(r=>r.id)).toEqual(['one']);expect(result.at).toBe('2026-11-23T12:00:00Z');expect(await db.capture_sessions.count()).toBe(0);expect(await db.commands.count()).toBe(0)})
+ it('does not fabricate an empty history when an offline source is unavailable',async()=>{const db=await setup();vi.stubGlobal('navigator',{onLine:false});await expect(visitRows(db,null,'owner','client','visits','*')).rejects.toThrow('Not available offline yet')})
+ it('rejects another owner before returning cached records',async()=>{const db=await setup();await expect(visitRows(db,null,'other','client','visits','*')).rejects.toThrow('owner mismatch')})
+ it('finds local unfinished work without changing session or frozen draft state',async()=>{const db=await setup();const session=await openCaptureSession(db,'owner','client');const draft={...newSurveyDraft(session),version_id:'version',brand_id:'brand',raw_answers:{answer:'saved'}};await saveSurveyDraft(db,draft);await db.local_meta.put({key:'order-draft:owner:client',value:JSON.stringify({lines:{sku:0.5}})});const before=await db.capture_drafts.toArray();const result=await localVisitWork(db,'owner','client');expect(result.hasOrder).toBe(true);expect(result.session?.id).toBe(session.id);expect(result.drafts).toHaveLength(1);expect(result.forms).toBeUndefined();expect(await db.capture_drafts.toArray()).toEqual(before);expect(await db.capture_sessions.count()).toBe(1);expect(await db.commands.count()).toBe(0)})
+})
