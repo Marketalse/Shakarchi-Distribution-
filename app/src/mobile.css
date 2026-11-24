@@ -281,3 +281,5 @@
 .mobile-shell .login-hero {min-height:0;overflow:visible}
 .mobile-shell .login-layout .auth-sheet {gap:8px;border-radius:22px}
 .mobile-shell .login-hero h1 {display:none}
+/* Keep the client identity clean inside its existing card; keyboard focus remains visible. */
+.mobile-shell .list .retail-row > a.client-identity { border:0; box-shadow:none; background:transparent; }
