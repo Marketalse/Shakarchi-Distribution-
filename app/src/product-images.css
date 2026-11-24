@@ -3,3 +3,5 @@
 .product-image-editor { display:grid; gap:16px; }
 .product-image-editor label { display:grid; gap:8px; }
 .product-image-editor .product-photo { width:180px; height:180px; }
+.image-crop-preview { display:grid; gap:12px; padding:16px; border:1px solid #E6E9EE; border-radius:16px; }
+.product-image-editor .image-crop-preview label { display:flex; align-items:center; gap:8px; }

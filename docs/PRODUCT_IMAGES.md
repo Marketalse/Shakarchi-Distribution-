@@ -23,3 +23,10 @@ Image editing requires connectivity. If a response is lost, keep the editor open
 Synthetic browser preview at 390 px shows image/long-name/fallback and 0.5 Pack → $32 on a $64 Pack fixture. At 320 px there is no horizontal overflow. No real product was changed by this preview.
 
 Apply 017 transactionally after 016, checking financial history fingerprints before/after. Deploy frontend only after schema and private bucket checks pass. Rollback frontend to the prior deployment if necessary; the nullable additive schema can remain. Do not drop media or rewrite issued documents as rollback.
+
+
+## Automatic framing — 24 November2026
+
+Selecting a new image now prepares a preview before any upload. The browser detects transparent or consistent plain border backgrounds, trims their connected outer margins conservatively, adds safety space and centers the complete retained image inside a768px square with5% frame margins. Output remains private optimized WebP. No photo is sent to an AI service. This is background-margin detection, not semantic object recognition or background removal. Busy, blank, tiny and edge-touching content falls back to the full photo. Owner can disable trimming, compare the preview and choose Save image or Cancel image. Existing images are not reprocessed. Upload/RPC retry and all financial contracts are unchanged.
+
+149 tests and both builds pass; four pre-existing lint warnings remain. Crop regressions cover plain/transparent backgrounds, tall fit, blank and inconsistent backgrounds, edge-touching content and white interior label preservation. Synthetic browser before/after confirms enlargement and centering without clipped subject or console errors. Real product photo acceptance is still pending.
