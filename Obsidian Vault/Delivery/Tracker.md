@@ -57,3 +57,7 @@ The [Delivery Tracker](https://github.com/users/Marketalse/projects/3) is a priv
 - 2026-11-22 · **M6 #14 In Progress** · Owner authorized bounded evaluation while #13 remains open. Prepared private collections baseline/advisor comparison, source query, ten synthetic tests and owner rubric. Live016 read-only checks pass and local preview renders without captured console errors. No app/schema/financial writes or external model/delivery. Owner usefulness review pending; reliability #41/#12 retains priority.
 
 - 2026-11-22 · **#68 done / PR70 live** · main3116086 Admin/mobile READY; signed-in aging and product/client gross-profit rendered. Direct SQL matches Today/weekly COGS/profit/margin and current aging.98tests/both builds/DB001–016 pass; no schema or financial writes. #69 future accounting scoped; #12/#13/#26 wider gates and #62/#58 remain open.
+
+## 24 November 2026 — Product images and design #2
+
+#81 / #82: implementation and local verification complete; review/release pending. Additive migration 017, private owner image editor, mobile image cache and approved card layout. 145 app tests, both builds and database 001–017 regressions pass; synthetic phone preview verified. #58 remains open; signed-in real upload acceptance is pending. See [contract and evidence](../Technical/Product-images-and-catalogue-card.md).

@@ -424,4 +424,39 @@ for(const days of [0,4,10]){
 }
 await assert.rejects(usdDb.query('select wsd_private.issue_solo_invoice_v2($1,$2)',[id(),JSON.stringify(exceptionRequest)]),/permission denied/);
 console.log('PASS · Cash due today without implicit receipt · credit4–10 only · historical14-day replay · protected underlying posting function.');
+
+// Product media: no change to financial rows; immutable private object versions and guarded image references.
+await usdDb.exec('reset role');
+const mediaHistory=JSON.stringify((await usdDb.query('select row_to_json(t) as row from order_lines t order by id')).rows);
+await usdDb.exec(await readFile(root+'017_product_images.sql','utf8'));
+assert.equal((await usdDb.query("select public from storage.buckets where id='product-images'")).rows[0].public,false);
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+const imageProduct=(await usdDb.query('select id from solo_order_catalog_v2 limit 1')).rows[0].id;
+const imagePath=owner+'/'+imageProduct+'/'+id()+'.webp';
+await usdDb.query("insert into storage.objects(bucket_id,name) values('product-images',$1)",[imagePath]);
+const mediaOp=id(),mediaRequest={id:imageProduct,expected_image_path:null,image_path:imagePath};
+const mediaResult=await usdRpc('set_solo_product_image',mediaOp,mediaRequest);
+assert.equal(mediaResult.image_path,imagePath);
+assert.deepEqual(await usdRpc('set_solo_product_image',mediaOp,mediaRequest),mediaResult);
+assert.equal((await usdDb.query('select image_path from solo_order_catalog_v2 where id=$1',[imageProduct])).rows[0].image_path,imagePath);
+await assert.rejects(usdRpc('set_solo_product_image',id(),{...mediaRequest,image_path:null}),/changed/);
+await assert.rejects(usdRpc('set_solo_product_image',id(),{id:imageProduct,expected_image_path:imagePath,image_path:owner+'/'+imageProduct+'/'+id()+'.webp'}),/Upload a valid/);
+await assert.rejects(usdRpc('set_solo_product_image',id(),{...mediaRequest,selling_price:'0.01'}),/Image identity/);
+await assert.rejects(usdDb.query("insert into storage.objects(bucket_id,name) values('product-images',$1)",[other+'/'+imageProduct+'/'+id()+'.webp']),/row-level security/);
+await usdDb.query("update storage.objects set name='overwritten' where bucket_id='product-images' and name=$1",[imagePath]);
+assert.equal((await usdDb.query("select name from storage.objects where bucket_id='product-images'")).rows[0].name,imagePath);
+await usdRpc('set_solo_product_image',id(),{id:imageProduct,expected_image_path:imagePath,image_path:null});
+assert.equal((await usdDb.query('select image_path from products where id=$1',[imageProduct])).rows[0].image_path,null);
+// A replay after removal cannot restore the old pointer.
+assert.deepEqual(await usdRpc('set_solo_product_image',mediaOp,mediaRequest),mediaResult);
+assert.equal((await usdDb.query('select image_path from products where id=$1',[imageProduct])).rows[0].image_path,null);
+await usdDb.exec("select set_config('request.jwt.claim.sub','"+other+"',false)");
+assert.equal((await usdDb.query("select count(*)::int as n from storage.objects where bucket_id='product-images'")).rows[0].n,0);
+await assert.rejects(usdRpc('set_solo_product_image',id(),mediaRequest),/Owner access/);
+await usdDb.exec('reset role;set role anon');
+await assert.rejects(usdRpc('set_solo_product_image',id(),mediaRequest),/permission denied/);
+await usdDb.exec('reset role');
+assert.equal(JSON.stringify((await usdDb.query('select row_to_json(t) as row from order_lines t order by id')).rows),mediaHistory);
+console.log('PASS · private product media · immutable paths · exact retry · stale reference guard · nonowner/anon denial · no financial history change.');
+
 await usdDb.close()

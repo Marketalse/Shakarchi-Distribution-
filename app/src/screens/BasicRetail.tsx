@@ -1,3 +1,4 @@
+import {ProductImage} from './ProductImage'
 import {VisitWorkspace} from './VisitWorkspace'
 import {liveQuery} from 'dexie'
 import {fieldCatalog} from '../lib/catalog'
@@ -21,7 +22,7 @@ import type { Outlet } from '../lib/types'
 
 type CatalogItem = {
   id: string; brand: string | null; sku: string | null; product_line: string
-  flavour: string; selling_price: number; items_per_half_pack: number; packs_per_box: number
+  flavour: string; image_path?:string|null; selling_price: number; items_per_half_pack: number; packs_per_box: number
 }
 type Invoice = {
   id: string; outlet_id: string; next_visit: string | null
@@ -290,9 +291,9 @@ function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outlet
         <label hidden={!showFilters}>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
         <p className="muted">Order in 0.5 Pack steps. Each product shows its own pack and box sizes.</p>
         {visibleProducts?.map(item => <div className="card sku-row" key={item.id}>
-          <span className="product-thumbnail"><MobileIcon name="box" size={32} /></span>
+          <ProductImage path={item.image_path} label={skuOf(item)}/>
           <div className="sku-info"><strong>{skuOf(item)}</strong><p>{brandOf(item)}</p><p>{money(packTotal(item.selling_price, item.items_per_half_pack, 1))} / Pack</p></div>
-          <p className="muted packaging-spec">½ Pack = {item.items_per_half_pack} items · Box = {item.packs_per_box} Packs</p><div className="stepper-area"><div className="stepper">
+          <div className="stepper-area"><div className="stepper">
             <button type="button" aria-label={'Decrease ' + skuOf(item)} disabled={!lines[item.id]}
               onClick={() => setLines(current => ({ ...current, [item.id]: Math.max(0, (current[item.id] || 0) - 0.5) }))}>−</button>
             <output aria-label={skuOf(item) + ' quantity'}>{packBreakdown(lines[item.id] || 0,item.packs_per_box)}</output>
