@@ -1,3 +1,4 @@
+import {VisitWorkspace} from './VisitWorkspace'
 import {liveQuery} from 'dexie'
 import {fieldCatalog} from '../lib/catalog'
 import {stagePhoto} from '../lib/attachments'
@@ -73,7 +74,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
   const [visitError, setVisitError] = useState('')
   const [visitBusy, setVisitBusy] = useState(false)
   useEffect(() => {
-    if (!outletId || (tab === 'Summary' || tab === 'Profile' || tab === 'Survey forms') || !supabase) return
+    if (!outletId || ['Summary','Profile','Survey forms','Payments'].includes(tab) || !supabase) return
     let active = true
     setVisitBusy(true)
     void openCaptureSession(db,ownerId,outletId,tab === 'Order' ? 'order' : 'survey').then(
@@ -107,12 +108,13 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
       <div className="detail-heading">{tab !== 'Summary' && <button className="link" onClick={() => setTab('Summary')}>← Retail details</button>}<Link to="/">All stores</Link></div>
       <section className="card client-heading" hidden={tab === 'Order'}><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} disclosure /></section>
       <nav className="retail-tabs" aria-label="Retail actions">
-        {['Summary', 'Profile', 'Order', 'Survey', 'Survey forms'].map((label) =>
-          <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label}</button>)}
+        {['Summary', 'Order', 'Payments', 'Survey forms', 'Profile', 'Survey'].map((label) =>
+          <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label === 'Summary' ? 'Visit workspace' : label}</button>)}
       </nav>
       {tab === 'Profile' && <><ClientOverdue outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <><div className="client-actions"><button className="primary" onClick={() => setTab('Order')}><MobileIcon name="cart" size={20} />Start a new order</button><button onClick={() => setTab('Survey forms')}><MobileIcon name="chart" size={20} />Market survey</button></div><Summary key={version+':'+revision} retail={retail} revision={revision} /><details className="retail-disclosure"><summary>Contact Information <span>⌄</span></summary><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Phone not recorded'}</p><button onClick={() => setTab('Profile')}>View client profile</button></details></>}
+      {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/></details></>}
+      {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
       {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={() => setRevision(revision + 1)} />}

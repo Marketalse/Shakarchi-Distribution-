@@ -882,3 +882,10 @@
 @media(max-width:760px){ .manager-welcome{padding:22px;grid-template-columns:minmax(0,1fr);gap:20px}.manager-day{border-left:0;border-top:1px solid #4b5870;padding:18px 0 0;display:grid;grid-template-columns:1fr auto}.manager-day strong{grid-row:1/4;grid-column:2;font-size:48px}.manager-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-timeline>div{flex-wrap:wrap}.manager-timeline time{flex-basis:100%;margin-left:20px}.manager-toolbar{align-items:stretch;flex-direction:column}.manager-customer-heading{flex-wrap:wrap}.manager-customer-heading>a{width:100%}.admin-workspace.is-collapsed .manager-nav-group>p{display:block}.admin-workspace.is-collapsed .manager-nav-group a{justify-content:flex-start;padding:10px 14px} }
 @media(max-width:400px){.manager-stats,.manager-module-grid{grid-template-columns:minmax(0,1fr)}.manager-focus-list li{flex-wrap:wrap}.manager-focus-list strong{margin-left:18px}}
 @media(prefers-reduced-motion:reduce){.manager-module{transition:none}}
+
+.manager-relationship { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin:16px 0; }
+.manager-relationship>div { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.manager-relationship small,.manager-relationship span { color:#647086; font-size:11px; }
+.manager-relationship strong { font-size:18px; overflow-wrap:anywhere; }
+.manager-relationship a { display:inline-flex; align-items:center; min-height:44px; font-size:12px; overflow-wrap:anywhere; }
+@media(max-width:760px){.manager-relationship{grid-template-columns:1fr}}

@@ -173,3 +173,34 @@
 .mobile-shell .navigate-menu[open] .store-navigation { position:absolute; right:0; top:52px; z-index:6; width:230px; padding:10px; background:white; border:1px solid var(--line); border-radius:16px; box-shadow:0 8px 20px #1D2A4420; }
 .mobile-shell .detail-heading { justify-content:space-between; }
 .mobile-shell .detail-heading>a:last-child { margin-left:auto; min-height:44px; display:flex; align-items:center; }
+
+/* Visit preparation: read-only context above existing capture workflows. */
+.mobile-shell .visit-workspace { display:grid; gap:16px; min-width:0; }
+.mobile-shell .visit-prepare { padding:22px; border-radius:18px; background:var(--ink); color:white; }
+.mobile-shell .visit-eyebrow { font-size:10px; letter-spacing:1.2px; color:var(--lime); }
+.mobile-shell .visit-prepare h2 { font-size:23px; line-height:1.3; margin:12px 0; color:white; }
+.mobile-shell .visit-prepare>p:not(.visit-eyebrow) { color:#c4ccda; font-size:12px; }
+.mobile-shell .visit-main-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px; }
+.mobile-shell .visit-main-actions button { display:flex; gap:8px; align-items:center; justify-content:center; padding:12px 8px; min-height:52px; }
+.mobile-shell .visit-main-actions button:not(.primary) { background:transparent; border-color:#6a7689; color:white; }
+.mobile-shell .visit-readiness { display:grid; gap:12px; }
+.mobile-shell .visit-readiness .muted { font-size:11px; }
+.mobile-shell .visit-local-status { font-size:13px; }
+.mobile-shell .visit-resume { text-align:left; background:#f0f5e1; border:1px solid #dbe5c1; padding:12px; }
+.mobile-shell .visit-customer-brief { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.mobile-shell .visit-customer-brief>div { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.mobile-shell .visit-customer-brief span,.mobile-shell .visit-customer-brief small { color:var(--muted); font-size:10px; }
+.mobile-shell .visit-customer-brief strong { font-size:13px; overflow-wrap:anywhere; }
+.mobile-shell .visit-customer-brief a { min-height:44px; display:flex; align-items:center; overflow-wrap:anywhere; }
+.mobile-shell .visit-payments .metrics { margin:16px 0; }
+.mobile-shell .visit-payments .metrics>div { padding:12px; background:var(--bg); border:0; }
+.mobile-shell .visit-payments .metrics dd { font-size:20px; overflow-wrap:anywhere; }
+.mobile-shell .visit-payments p,.mobile-shell .visit-recent p { font-size:11px; }
+.mobile-shell .visit-invoice-list { list-style:none; padding:0; margin:10px 0; }
+.mobile-shell .visit-invoice-list li { border-bottom:1px solid var(--line); }
+.mobile-shell .visit-invoice-list a { display:flex; align-items:center; gap:10px; padding:14px 0; min-height:60px; text-decoration:none; font-size:12px; }
+.mobile-shell .visit-invoice-list a>span:first-child { min-width:0; flex:1; }
+.mobile-shell .visit-invoice-list small { display:block; color:var(--muted); font-size:10px; margin-top:5px; }
+.mobile-shell .visit-payments details summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:12px; }
+.mobile-shell .retail-disclosure>.store-details { margin-top:16px; }
+@media(max-width:360px){.mobile-shell .visit-main-actions,.mobile-shell .visit-customer-brief{grid-template-columns:1fr}.mobile-shell .visit-prepare{padding:18px}}
