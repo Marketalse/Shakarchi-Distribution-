@@ -38,6 +38,7 @@ export interface Outlet {
 }
 
 export interface Product {
+  image_path?: string | null
   id: string
   product_line: string
   flavour: string

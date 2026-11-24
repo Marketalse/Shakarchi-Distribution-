@@ -1,6 +1,6 @@
 import type {LocalDb} from './db'
 import type {SupabaseClient} from '@supabase/supabase-js'
-export type FieldProduct={id:string;brand:string|null;sku:string|null;product_line:string;flavour:string;selling_price:number;items_per_half_pack:number;packs_per_box:number}
+export type FieldProduct={image_path?:string|null;id:string;brand:string|null;sku:string|null;product_line:string;flavour:string;selling_price:number;items_per_half_pack:number;packs_per_box:number}
 export async function fieldCatalog(db:LocalDb,client:SupabaseClient|null):Promise<FieldProduct[]>{
  const ready=await db.local_meta.get('catalog-ready')
  if(ready){const cached=await db.products.toArray();if(cached.every(p=>p.selling_price!=null&&p.items_per_half_pack&&p.packs_per_box))return cached as unknown as FieldProduct[]}

@@ -1,3 +1,4 @@
+import {ProductImageEditor} from './ProductImageEditor';
 import {RetailTag} from './RetailTag'
 import {retailReference,invoiceRetailReference,paymentRetailReference} from '../lib/retail-reference'
 import {ManagerHome, ManagerActivity, ManagerClientContext} from './ManagerPages';
@@ -550,9 +551,9 @@ function ProductEditor() {
     {
       refresh
     } = useWorkspace();
-  return <Panel title={productId ? 'Product record' : 'New product'}>
+  return <><Panel title={productId ? 'Product record' : 'New product'}>
 <OwnerAdmin key={productId || 'new'} section="Products" embedded productId={productId} editorOnly onChanged={refresh} />
-</Panel>;
+</Panel>{productId&&<ProductImageEditor key={productId} productId={productId} onChanged={refresh}/>}</>;
 }
 function Settings() {
   const {

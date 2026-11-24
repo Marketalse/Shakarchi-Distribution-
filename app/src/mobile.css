@@ -204,3 +204,15 @@
 .mobile-shell .visit-payments details summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:12px; }
 .mobile-shell .retail-disclosure>.store-details { margin-top:16px; }
 @media(max-width:360px){.mobile-shell .visit-main-actions,.mobile-shell .visit-customer-brief{grid-template-columns:1fr}.mobile-shell .visit-prepare{padding:18px}}
+
+/* Approved catalogue card #2: large image left, text right, counter below text. */
+.mobile-shell .sku-row { display:grid; grid-template-columns:112px minmax(0,1fr); grid-template-rows:auto auto; gap:10px 14px; padding:14px; align-items:start; }
+.mobile-shell .sku-row .product-photo { grid-column:1; grid-row:1/3; width:112px; height:132px; border-radius:14px; align-self:stretch; }
+.mobile-shell .sku-row .sku-info { grid-column:2; grid-row:1; min-width:0; }
+.mobile-shell .sku-row .sku-info strong { display:block; font-size:17px; line-height:1.3; }
+.mobile-shell .sku-row .sku-info p { margin:7px 0 0; font-size:12px; }
+.mobile-shell .sku-row .stepper-area { grid-column:2; grid-row:2; justify-self:end; align-self:end; max-width:100%; }
+.mobile-shell .sku-row .stepper { gap:4px; padding:4px; border-radius:28px; }
+.mobile-shell .sku-row .stepper button { width:44px; min-height:44px; }
+.mobile-shell .sku-row .stepper output { min-width:42px; max-width:82px; font-size:12px; }
+@media(max-width:360px){.mobile-shell .sku-row{grid-template-columns:86px minmax(0,1fr);gap:10px}.mobile-shell .sku-row .product-photo{width:86px;height:126px}.mobile-shell .sku-row .sku-info strong{font-size:15px}.mobile-shell .sku-row .stepper{gap:2px}.mobile-shell .sku-row .stepper output{min-width:34px;font-size:11px}}

@@ -20,3 +20,5 @@ This is a planning baseline. Phase status and approval live in GitHub; an existi
 - [Manual exchange-rate pending recovery](Technical/Manual-rate-pending-recovery.md)
 
 - [M6 advisor evaluation](Technical/M6-advisor-evaluation.md) · [Current milestone status and priorities](Delivery/Milestone-status-2026-11-22.md)
+
+- [Product images and catalogue card](Technical/Product-images-and-catalogue-card.md)
