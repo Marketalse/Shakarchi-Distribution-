@@ -17,8 +17,12 @@ export function MobileOverview({ version }: { version: number }) {
   return <main className="mobile-overview">
     <section className="sales-hero"><p>Field workspace</p><strong>Ready for your next visit.</strong><span>Capture once. Keep moving.</span></section>
     {current && state.error && <p role="alert" className="error">{state.error}</p>}
-    <Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link>
-    <Link className="button primary" to="/?action=order"><MobileIcon name="cart" size={20} />Create order & survey</Link>
+    <div className="dashboard-actions" aria-label="Quick actions">
+      <Link className="dashboard-action" to="/outlets/new"><MobileIcon name="plus" size={22}/><span>New client</span></Link>
+      <Link className="dashboard-action" to="/reports"><MobileIcon name="chart" size={22}/><span>EOD summary</span></Link>
+      <Link className="dashboard-action" to="/admin/collections"><MobileIcon name="wallet" size={22}/><span>Cash collection</span></Link>
+      <Link className="dashboard-action" to="/" aria-label="Survey: choose a client"><MobileIcon name="check" size={22}/><span>Survey</span></Link>
+    </div>
     <div className="overview-metrics"><Link to="/" className="overview-metric soft"><MobileIcon name="shop" /><span>Clients on this device</span><strong>{current ? state.clients ?? '—' : '—'}</strong></Link><Link to="/" className="overview-metric"><MobileIcon name="invoice" /><span>Survey drafts on this device</span><strong>{current ? state.drafts ?? '—' : '—'}</strong></Link></div>
     <p className="muted">Use Sync to send saved work. Your submitted work appears in the manager portal.</p>
   </main>
