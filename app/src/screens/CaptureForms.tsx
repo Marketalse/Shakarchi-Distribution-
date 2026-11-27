@@ -163,10 +163,10 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
     {!reference && <p>Connect and Sync once to save published forms for offline use. Your survey templates have not been created for you.</p>}
     {reference && !reference.versions.length && <p>No published survey yet. Your templates can be added in owner tools when ready.</p>}
     {draft && reference && !session?.finish_requested && <>
-      {!version ? <section className="survey-type-menu" aria-labelledby="survey-type-title">
+      {!version && reference.versions.length>0 ? <section className="survey-type-menu" aria-labelledby="survey-type-title">
         <h3 id="survey-type-title">Choose a survey type</h3>
         <p className="muted">Only published templates synced to this device are listed.</p>
-        <div>{reference.versions.map(v=><button type="button" key={v.id} disabled={busy} className="survey-type-option" onClick={()=>change({version_id:v.id,brand_id:'',raw_answers:{}})}><MobileIcon name="file" size={20}/><span>{v.title}</span><span aria-hidden="true">›</span></button>)}</div>
+        <div>{reference.versions.map(v=><button type="button" key={v.id} disabled={busy} className="survey-type-option" onClick={()=>change({version_id:v.id,brand_id:'',raw_answers:{}})}><MobileIcon name="check" size={20}/><span>{v.title}</span><span aria-hidden="true">›</span></button>)}</div>
       </section> : <>
         <div className="survey-selected-type"><strong>{version.title}</strong><button type="button" className="link" disabled={busy} onClick={()=>change({version_id:'',brand_id:'',raw_answers:{}})}>Change survey type</button></div>
         <form className="form" onSubmit={e=>void submit(e)} key={draft.id}>
