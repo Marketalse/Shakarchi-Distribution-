@@ -254,6 +254,14 @@
 .mobile-shell .catalog-cards.grid .stepper button {width:44px;height:44px;padding:0;min-width:0}
 .mobile-shell .order-confirmation {background:#eff8db;border-color:#d5eaa4;margin:12px 0}
 .mobile-shell .order-confirmation>p:first-child {font-size:16px;font-weight:600}
+.mobile-shell .order-screen-actions { display:flex; justify-content:flex-end; }
+.mobile-shell .order-screen-actions button { display:flex; align-items:center; gap:6px; min-height:44px; }
+.mobile-shell .survey-prompt-backdrop { position:fixed; inset:0; z-index:30; display:grid; place-items:center; padding:16px; background:#0e1729aa; }
+.mobile-shell .survey-prompt { width:min(100%,360px); padding:22px; background:white; box-shadow:0 16px 48px #0e172955; }
+.mobile-shell .survey-prompt h2 { margin-top:0; }
+.mobile-shell .survey-prompt p { line-height:1.5; }
+.mobile-shell .survey-prompt>div { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:18px; }
+.mobile-shell .survey-prompt>div button { min-width:0; padding:8px; }
 .invoice-pdf-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
 .mobile-shell .retail-row .client-identity {min-width:0}
 .mobile-shell .retail-row .client-identity strong {font-size:19px;line-height:1.4;overflow-wrap:anywhere}
