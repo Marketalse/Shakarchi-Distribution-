@@ -272,7 +272,7 @@ export function OrderForm({ outletId, visitId, onSaved,onSurvey,ownerId,cacheVer
   }
 
   return <form className="form" onSubmit={(e) => void submit(e)}>
-    <div className="order-screen-actions"><button type="button" className="link" onClick={onSurvey}><MobileIcon name="check" size={18}/>Start survey for this client</button></div>
+    <div className="order-screen-actions"><button type="button" className="link" onClick={()=>{void draftWrites.current.then(onSurvey).catch(e=>setError('Draft save failed: '+message(e)))}}><MobileIcon name="check" size={18}/>Start survey for this client</button></div>
     <fieldset disabled={busy || !draftReady} className="form retail-fields">
       {reviewing ? <>
         <button className="link" type="button" onClick={() => setReviewing(false)}>Back to products</button>
