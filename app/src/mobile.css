@@ -53,6 +53,9 @@
 .mobile-shell .summary-line { font-size:12px; align-items:center; }
 .mobile-shell .summary-line>span { min-width:0; overflow-wrap:anywhere; }
 .mobile-shell .summary-line>strong { flex:none; }
+.mobile-shell .collection-input-row { display:flex; gap:8px; align-items:center; }
+.mobile-shell .collection-input-row input { min-width:0; flex:1; }
+.mobile-shell .collection-max { min-width:64px; min-height:50px; padding:8px 14px; }
 .mobile-shell .card-link { text-align:left; }
 .mobile-shell .profile-links { gap:12px; }
 .mobile-shell .profile-links .card-link { justify-content:flex-start; min-height:70px; }
