@@ -232,6 +232,10 @@
 .mobile-shell .layout-switch button {font-size:11px;padding:8px;min-height:44px}
 .mobile-shell .layout-switch [aria-pressed=true] {background:var(--ink);color:white}
 .mobile-shell .catalog-help {font-size:11px;margin:10px 0}
+.mobile-shell .order-review-line {align-items:center}
+.mobile-shell .order-review-name {display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.mobile-shell .order-review-name strong {font-size:13px;font-weight:700;color:var(--ink)}
+.mobile-shell .order-review-name span {font-size:11px;color:var(--muted)}
 .mobile-shell .catalog-cards.grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mobile-shell .catalog-cards.grid .sku-row {display:flex;flex-direction:column;align-items:stretch;padding:50px 8px 8px;gap:8px;min-width:0}
 .mobile-shell .catalog-cards.grid .product-photo {width:100%;height:auto;aspect-ratio:1;align-self:stretch}
