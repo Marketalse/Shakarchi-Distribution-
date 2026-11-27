@@ -121,6 +121,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>
       </section>
       <InvoicePdfActions invoiceId={selected.id}/><button onClick={() => void share()}>Share text summary</button>
+      {['Unpaid','Partially paid'].includes(selected.payment_status) && <Link className="button primary invoice-collect-action" to={'/admin/collections?invoice='+selected.id}>Record payment</Link>}
       {embedded&&<Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>}
     </> : <>
       <nav className="retail-tabs" aria-label="Order list">
