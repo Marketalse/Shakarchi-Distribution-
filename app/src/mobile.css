@@ -291,3 +291,11 @@
 .mobile-shell .login-hero h1 {display:none}
 /* Keep the client identity clean inside its existing card; keyboard focus remains visible. */
 .mobile-shell .list .retail-row > a.client-identity { border:0; box-shadow:none; background:transparent; }
+
+/* Annotation #9-B: three compact client workspace destinations. */
+.mobile-shell .retail-action-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:14px 0; }
+.mobile-shell .retail-action-nav button { display:flex; min-width:0; min-height:72px; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:8px 4px; border:1px solid var(--line); border-radius:16px; background:var(--card); color:var(--ink); font-size:11px; }
+.mobile-shell .retail-action-nav button[aria-pressed=true] { border-color:var(--ink); background:var(--ink); color:white; }
+.mobile-shell .retail-action-nav button .mobile-icon { flex:none; }
+.mobile-shell .survey-observation-link { margin-top:16px; }
+.mobile-shell .survey-observation-link h2 { font-size:16px; }
