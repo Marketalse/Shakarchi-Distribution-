@@ -43,6 +43,25 @@ export function localToUsd(sourceAmount: string, exchangeRate: string): Usd {
   return usdAmount(cents + (remainder * 2n >= rate ? 1n : 0n))
 }
 
+/** Display-only invoice equivalent using the immutable order-time IQD/USD rate. */
+export function usdToIqd(usdAmount: string | number, exchangeRate: string): string {
+  const cents = usdCents(usdAmount)
+  const rate = scaledAmount(exchangeRate, 8)
+  if (cents < 0n || rate <= 0n) throw Error('Use a positive rate and nonnegative USD amount.')
+  const numerator = cents * rate
+  const units = numerator / 100000000n
+  const remainder = numerator % 100000000n
+  const rounded = units + (remainder * 2n >= 100000000n ? 1n : 0n)
+  return rounded / 100n + '.' + String(rounded % 100n).padStart(2, '0')
+}
+
+export function formatIqdAmount(value: string): string {
+  const cents = scaledAmount(value, 2)
+  const absolute = cents < 0n ? -cents : cents
+  return new Intl.NumberFormat('en-US').format(absolute / 100n) + '.' +
+    String(absolute % 100n).padStart(2, '0') + ' IQD'
+}
+
 /** Display only; canonical amounts and payment entry keep exact cents. */
 export function formatUsdSummary(value: string | number): string {
   const cents=usdCents(value), absolute=cents<0n?-cents:cents

@@ -10,13 +10,14 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { MobileIcon } from './MobileIcon'
 import { invoiceItem, invoiceQuantity, invoiceUnit, invoiceSellingPrice, type ProductSnapshot } from '../lib/invoice-display'
 import '../invoice.css'
-import { formatUsd } from '../lib/money'
+import { formatUsd, formatIqdAmount, formatIqdRate, usdToIqd } from '../lib/money'
 import { supabase } from '../lib/supabase'
 
 type Invoice = {
   id: string; invoice_no: number; outlet_id: string; total: string
   collected: string; outstanding: string; payment_status: string
   created_at: string; recipient_snapshot: { name?: string } | null
+  fx_exchange_rate_used?: string | null; fx_rate_timestamp?: string | null
 }
 type InvoiceLine = {
   id: string; quantity: number; unit_price: string; line_total: string
@@ -25,6 +26,9 @@ type InvoiceLine = {
 const money = formatUsd
 const day = (value: string) => new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Baghdad', dateStyle: 'medium',
+}).format(new Date(value))
+const dateTime = (value: string) => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Baghdad', dateStyle: 'medium', timeStyle: 'short',
 }).format(new Date(value))
 const fail = (value: unknown) => value instanceof Error ? value.message : String(value)
 
@@ -52,7 +56,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
       const result: Invoice[] = cached??[]
       if(!cached)for (let offset = 0; ; offset += 500) {
         const { data, error } = await supabase.from('solo_invoice_balances')
-          .select('id,invoice_no,outlet_id,total,collected,outstanding,payment_status,created_at,recipient_snapshot')
+          .select('id,invoice_no,outlet_id,total,collected,outstanding,payment_status,created_at,recipient_snapshot,fx_exchange_rate_used,fx_rate_timestamp')
           .order('created_at', { ascending: false }).order('id').range(offset, offset + 499)
         if (error) throw error
         result.push(...data as Invoice[])
@@ -118,6 +122,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         {!lines ? lineError ? <p>Invoice items could not be loaded.</p> : <p role="status">Loading invoice…</p> : <table className="invoice-items"><caption className="sr-only">Receipt item details in USD</caption><thead><tr><th>Item</th><th>Brand · type</th><th>Unit price · USD</th><th>Qty</th><th>Amount · USD</th></tr></thead><tbody>{lines.map(line=>{const item=invoiceItem(line.product_snapshot);return <tr key={line.id}><td data-label="Item">{item.name}</td><td data-label="Brand · type">{[item.brand,item.mode].filter(Boolean).join(' · ')||'—'}</td><td data-label="Unit price · USD">{money(invoiceSellingPrice(line.product_snapshot,line.unit_price))}{invoiceUnit(line.product_snapshot)}</td><td data-label="Qty">{invoiceQuantity(line.product_snapshot,line.quantity)}</td><td data-label="Amount · USD">{money(line.line_total)}</td></tr>})}</tbody></table>}
         <div className="invoice-totals" aria-label="Invoice amounts">
           <div className="invoice-amount-line"><span>Requested amount</span><strong>{money(selected.total)}</strong></div>
+          <div className="invoice-amount-line invoice-iqd-equivalent"><span>Order total · IQD equivalent<small className="muted">{selected.fx_exchange_rate_used && selected.fx_rate_timestamp ? `${formatIqdRate(selected.fx_exchange_rate_used)} · ${dateTime(selected.fx_rate_timestamp)}` : 'Unavailable: no order-date rate snapshot'}</small></span><strong>{selected.fx_exchange_rate_used ? formatIqdAmount(usdToIqd(selected.total,selected.fx_exchange_rate_used)) : 'Unavailable'}</strong></div>
           <div className="invoice-amount-line"><span>Collected to date</span><strong>{money(selected.collected)}</strong></div>
           <div className="invoice-amount-line invoice-remaining"><span>Remaining debt</span><strong>{money(selected.outstanding)}</strong></div>
         </div>

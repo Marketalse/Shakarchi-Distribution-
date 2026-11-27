@@ -14,6 +14,7 @@
 .invoice-remaining { margin-top:4px; padding-top:12px; border-top:1px solid #dfe4ea; font-size:16px; color:#1d2a44; }
 .invoice-remaining span { color:inherit; font-weight:600; }
 .invoice-remaining strong { font-size:19px; }
+.invoice-iqd-equivalent small { display:block; margin-top:3px; font-size:10px; }
 @media(max-width:600px) {
  .invoice-receipt { padding:16px; }
  .invoice-receipt .invoice-brand { margin-bottom:10px; }

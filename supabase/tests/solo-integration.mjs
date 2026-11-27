@@ -459,4 +459,43 @@ await usdDb.exec('reset role');
 assert.equal(JSON.stringify((await usdDb.query('select row_to_json(t) as row from order_lines t order by id')).rows),mediaHistory);
 console.log('PASS · private product media · immutable paths · exact retry · stale reference guard · nonowner/anon denial · no financial history change.');
 
+// Invoice-date IQD equivalents link to one immutable rate captured during order insertion.
+const ordersBeforeFxSnapshot=(await usdDb.query('select id from orders order by id')).rows.map(row=>row.id);
+await usdDb.exec(await readFile(root+'018_order_fx_snapshot.sql','utf8'));
+assert.equal((await usdDb.query('select count(*)::int as n from orders where fx_rate_version_id is not null')).rows[0].n,0);
+assert.equal((await usdDb.query('select count(*)::int as n from solo_invoice_balances where fx_exchange_rate_used is not null')).rows[0].n,0);
+await usdDb.exec("set role authenticated;select set_config('request.jwt.claim.sub','"+owner+"',false)");
+const currentSnapshotProduct=(await usdDb.query('select selling_price,items_per_half_pack,packs_per_box from products where id=$1',[sku])).rows[0];
+const snapshotBaseRequest={...exceptionRequest,items:[{...exceptionRequest.items[0],price:String(currentSnapshotProduct.selling_price),items_per_half_pack:currentSnapshotProduct.items_per_half_pack,packs_per_box:currentSnapshotProduct.packs_per_box}]};
+const noRateOperation=id(),noRateRequest={...snapshotBaseRequest,visit_id:id()};
+await usdRpc('issue_solo_invoice_v2',noRateOperation,noRateRequest);
+const noRateOrdersBeforeReplay=(await usdDb.query('select count(*)::int as n from orders where id=$1',[noRateOperation])).rows[0].n;
+await usdRpc('issue_solo_invoice_v2',noRateOperation,noRateRequest);
+assert.equal((await usdDb.query('select count(*)::int as n from orders where id=$1',[noRateOperation])).rows[0].n,noRateOrdersBeforeReplay);
+assert.equal((await usdDb.query('select fx_rate_version_id from orders where id=$1',[noRateOperation])).rows[0].fx_rate_version_id,null);
+assert.equal((await usdDb.query('select fx_exchange_rate_used from solo_invoice_balances where id=$1',[noRateOperation])).rows[0].fx_exchange_rate_used,null);
+const orderRate=id();
+await usdRpc('publish_solo_fx_rate',orderRate,{exchange_rate_used:'1500',rate_source:'Synthetic order snapshot',valid_until:new Date(Date.now()+3600000).toISOString()});
+const snapshotOperation=id(),snapshotRequest={...snapshotBaseRequest,visit_id:id()};
+await usdRpc('issue_solo_invoice_v2',snapshotOperation,snapshotRequest);
+const savedOrderFx=(await usdDb.query('select o.fx_rate_version_id,o.created_at,r.rate_timestamp,r.valid_until from orders o join fx_rate_versions r on r.id=o.fx_rate_version_id where o.id=$1',[snapshotOperation])).rows[0];
+assert.equal(savedOrderFx.fx_rate_version_id,orderRate);
+assert.ok(Date.parse(savedOrderFx.created_at)>=Date.parse(savedOrderFx.rate_timestamp));
+assert.ok(Date.parse(savedOrderFx.created_at)<Date.parse(savedOrderFx.valid_until));
+const snapshotBalance=(await usdDb.query('select total,fx_exchange_rate_used,fx_rate_timestamp from solo_invoice_balances where id=$1',[snapshotOperation])).rows[0];
+assert.equal(Number(snapshotBalance.fx_exchange_rate_used),1500);
+assert.equal(Date.parse(snapshotBalance.fx_rate_timestamp),Date.parse(savedOrderFx.rate_timestamp));
+const replacementRate=id();
+await usdRpc('publish_solo_fx_rate',replacementRate,{exchange_rate_used:'1600',rate_source:'Synthetic replacement',valid_until:new Date(Date.now()+3600000).toISOString()});
+await usdRpc('issue_solo_invoice_v2',snapshotOperation,snapshotRequest);
+assert.equal((await usdDb.query('select fx_rate_version_id from orders where id=$1',[snapshotOperation])).rows[0].fx_rate_version_id,orderRate);
+assert.equal(Number((await usdDb.query('select fx_exchange_rate_used from solo_invoice_balances where id=$1',[snapshotOperation])).rows[0].fx_exchange_rate_used),1500);
+const laterOperation=id();
+await usdRpc('issue_solo_invoice_v2',laterOperation,{...snapshotBaseRequest,visit_id:id()});
+assert.equal((await usdDb.query('select fx_rate_version_id from orders where id=$1',[laterOperation])).rows[0].fx_rate_version_id,replacementRate);
+assert.deepEqual((await usdDb.query('select id from orders where id=any($1::uuid[]) order by id',[ordersBeforeFxSnapshot])).rows.map(row=>row.id).sort(),ordersBeforeFxSnapshot.slice().sort());
+await assert.rejects(usdDb.query('update orders set fx_rate_version_id=$1 where id=$2',[replacementRate,snapshotOperation]),/permission denied/);
+await usdDb.exec('reset role');
+console.log('PASS · migration 018 preserves legacy-unavailable invoices · exact order-time rate capture · expired-rate unavailable · replacement does not revalue invoices · replay/append-only protection.');
+
 await usdDb.close()
