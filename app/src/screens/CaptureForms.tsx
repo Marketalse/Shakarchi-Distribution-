@@ -163,8 +163,13 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
     {!reference && <p>Connect and Sync once to save published forms for offline use. Your survey templates have not been created for you.</p>}
     {reference && !reference.versions.length && <p>No published survey yet. Your templates can be added in owner tools when ready.</p>}
     {draft && reference && !session?.finish_requested && <>
-      <label>Survey type<select value={draft.version_id} disabled={busy} onChange={e=>change({version_id:e.target.value,raw_answers:{}})}><option value="">Choose published form</option>{reference.versions.map(v=><option key={v.id} value={v.id}>{v.title}</option>)}</select></label>
-      {version && <form className="form" onSubmit={e=>void submit(e)} key={draft.id}>
+      {!version ? <section className="survey-type-menu" aria-labelledby="survey-type-title">
+        <h3 id="survey-type-title">Choose a survey type</h3>
+        <p className="muted">Only published templates synced to this device are listed.</p>
+        <div>{reference.versions.map(v=><button type="button" key={v.id} disabled={busy} className="survey-type-option" onClick={()=>change({version_id:v.id,brand_id:'',raw_answers:{}})}><MobileIcon name="file" size={20}/><span>{v.title}</span><span aria-hidden="true">›</span></button>)}</div>
+      </section> : <>
+        <div className="survey-selected-type"><strong>{version.title}</strong><button type="button" className="link" disabled={busy} onClick={()=>change({version_id:'',brand_id:'',raw_answers:{}})}>Change survey type</button></div>
+        <form className="form" onSubmit={e=>void submit(e)} key={draft.id}>
         <fieldset disabled={busy} className="retail-fields form">
           <label>Competitor brand<select name="brand_id" required value={draft.brand_id} onChange={e=>change({brand_id:e.target.value})}><option value="">Choose competitor</option>{reference.brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
           {version.questions.map(q=><label key={q.id}>{q.label}{q.type==='choice'||q.type==='boolean'
@@ -172,7 +177,7 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
             : <input name={'answer:'+q.id} required={q.required} type={q.type==='number'?'number':'text'} step="any" value={draft.raw_answers[q.id]??''} onChange={e=>change({raw_answers:{...draftRef.current!.raw_answers,[q.id]:e.target.value}})} />}</label>)}
         </fieldset>
         <button disabled={busy}>{busy?'Saving…':'Save survey'}</button>
-      </form>}
+      </form></>}
     </>}
     {saved.some(d=>!['editing','superseded','cancelled'].includes(d.status)) && <section aria-label="Saved survey status"><h3>Saved surveys</h3><ul className="plain">{saved.filter(d=>!['editing','superseded','cancelled'].includes(d.status)).map(d=><li key={d.id}>
       <strong>{reference?.versions.find(v=>v.id===d.version_id)?.title??'Saved form'}</strong> · {d.status==='synced'?'Synced':d.status==='rejected'?'Needs review':'Waiting to sync'}
