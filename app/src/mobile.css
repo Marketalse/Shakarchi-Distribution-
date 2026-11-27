@@ -291,3 +291,7 @@
 .mobile-shell .login-hero h1 {display:none}
 /* Keep the client identity clean inside its existing card; keyboard focus remains visible. */
 .mobile-shell .list .retail-row > a.client-identity { border:0; box-shadow:none; background:transparent; }
+
+.mobile-shell .invoice-dispatch-actions { display:flex; justify-content:flex-end; margin-top:8px; }
+.mobile-shell .dispatch-copy-button { display:grid; place-items:center; width:46px; height:46px; padding:0; border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); }
+.mobile-shell .dispatch-copy-button:disabled { opacity:.45; }
