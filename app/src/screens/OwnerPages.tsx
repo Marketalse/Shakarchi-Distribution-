@@ -105,6 +105,31 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
     }
   }
 
+  async function copyDispatchNote() {
+    if (!selected || !lines?.length) { setError('Invoice items are not ready to copy.'); return }
+    const client=retails.find(row=>row.id===selected.outlet_id)
+    const clean=(value:unknown)=>String(value??'').replace(/[\r\n|]+/g,' ').trim()||'—'
+    const store=selected.recipient_snapshot?.name || lineState?.clientName || client?.retail_name || 'Store name not recorded'
+    const phone=client?.owner_phone?.trim() || 'Not recorded'
+    const location=client?.address?.trim() || [client?.area,client?.province].filter(Boolean).join(', ') || 'Not recorded'
+    const rows=[['Brand','Flavor','Qty'],...lines.map(line=>{
+      const item=invoiceItem(line.product_snapshot)
+      return [clean(item.brand),clean(item.name),clean(invoiceQuantity(line.product_snapshot,line.quantity))]
+    })]
+    const widths=rows[0].map((_,column)=>Math.max(...rows.map(row=>row[column].length)))
+    const tableLine=(row:string[])=>row.map((cell,column)=>cell.padEnd(widths[column])).join(' | ')
+    const text=[
+      'Store: '+clean(store),'Phone: '+clean(phone),'Location: '+clean(location),'',
+      'Order details',tableLine(rows[0]),widths.map(width=>'-'.repeat(width)).join('-+-'),
+      ...rows.slice(1).map(tableLine),
+    ].join('\\n')
+    try {
+      if (!navigator.clipboard?.writeText) throw Error('Clipboard access is unavailable in this browser.')
+      await navigator.clipboard.writeText(text)
+      setNotice('Dispatch note copied.'); setError('')
+    } catch(failure) { setError(fail(failure)) }
+  }
+
   const shown = invoices?.filter(invoice => filter === 'All orders' || Number(invoice.outstanding) > 0)
 
   return <main>
@@ -121,6 +146,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>
       </section>
       <InvoicePdfActions invoiceId={selected.id}/><button onClick={() => void share()}>Share text summary</button>
+      <div className="invoice-dispatch-actions"><button type="button" className="icon-button dispatch-copy-button" aria-label="Copy dispatch note" title="Copy dispatch note" disabled={!lines?.length} onClick={() => void copyDispatchNote()}><MobileIcon name="box" size={20}/></button></div>
       {embedded&&<Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>}
     </> : <>
       <nav className="retail-tabs" aria-label="Order list">
