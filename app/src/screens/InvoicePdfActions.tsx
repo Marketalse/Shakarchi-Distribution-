@@ -3,7 +3,7 @@ import {db} from '../lib/db'
 import {supabase} from '../lib/supabase'
 import {fieldTable,offlineOwner} from '../lib/offline'
 import {invoicePdf,type PdfInvoice,type PdfLine} from '../lib/invoice-pdf'
-export function InvoicePdfActions({invoiceId}:{invoiceId:string}){
+export function InvoicePdfActions({invoiceId,compact=false}:{invoiceId:string;compact?:boolean}){
  const [revision,setRevision]=useState(0),[state,setState]=useState<{id:string;file?:File;url?:string;error?:string}>({id:invoiceId})
  useEffect(()=>{let active=true,url:string|undefined
   void(async()=>{await offlineOwner(db);let invoice:PdfInvoice|undefined,lines:PdfLine[]=[]
@@ -15,6 +15,6 @@ export function InvoicePdfActions({invoiceId}:{invoiceId:string}){
   return()=>{active=false;if(url)URL.revokeObjectURL(url)}
  },[invoiceId,revision])
  const current=state.id===invoiceId?state:undefined
- async function share(){if(!current?.file)return;try{await navigator.share({files:[current.file],title:current.file.name})}catch(e){if(e instanceof Error&&e.name!=='AbortError')setState(previous=>({...previous,error:'Sharing unavailable. Use Download PDF.'}))}}
- return <div className="invoice-pdf-actions">{current?.file?<>{navigator.canShare?.({files:[current.file]})&&<button type="button" className="primary" onClick={()=>void share()}>Share PDF</button>}<a className="button" href={current.url} download={current.file.name}>Download PDF</a></>:!current?.error&&<p role="status">Preparing invoice PDF…</p>}{current?.error&&<><p role="alert">{current.error}</p><button type="button" onClick={()=>{setState({id:invoiceId});setRevision(n=>n+1)}}>Retry PDF</button></>}</div>
+ async function share(){if(!current?.file||!current.url)return;try{if(navigator.canShare?.({files:[current.file]}))await navigator.share({files:[current.file],title:current.file.name});else{const link=document.createElement('a');link.href=current.url;link.download=current.file.name;link.click()}}catch(e){if(e instanceof Error&&e.name!=='AbortError')setState(previous=>({...previous,error:'PDF sharing could not be started.'}))}}
+ return <div className={'invoice-pdf-actions'+(compact?' compact':'')}>{current?.file?<><button type="button" className="primary" onClick={()=>void share()}>Share PDF</button>{!compact&&<a className="button" href={current.url} download={current.file.name}>Download PDF</a>}</>:!current?.error&&<p role="status">Preparing invoice PDF…</p>}{current?.error&&<><p role="alert">{current.error}</p><button type="button" onClick={()=>{setState({id:invoiceId});setRevision(n=>n+1)}}>Retry PDF</button></>}</div>
 }
