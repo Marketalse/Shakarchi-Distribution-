@@ -291,3 +291,8 @@
 .mobile-shell .login-hero h1 {display:none}
 /* Keep the client identity clean inside its existing card; keyboard focus remains visible. */
 .mobile-shell .list .retail-row > a.client-identity { border:0; box-shadow:none; background:transparent; }
+
+/* Annotation #12.1: keep the invoice PDF and text summary actions together. */
+.mobile-shell .invoice-share-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.mobile-shell .invoice-share-row .invoice-pdf-actions { flex:1 1 150px; min-width:0; margin:0; }
+.mobile-shell .invoice-share-row .invoice-pdf-actions button,.mobile-shell .invoice-share-row>button { flex:1 1 150px; min-width:0; min-height:44px; margin:0; }
