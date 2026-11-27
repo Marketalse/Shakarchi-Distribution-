@@ -167,7 +167,7 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
         <h3 id="survey-type-title">Choose a survey type</h3>
         <p className="muted">Only published templates synced to this device are listed.</p>
         <div>{reference.versions.map(v=><button type="button" key={v.id} disabled={busy} className="survey-type-option" onClick={()=>change({version_id:v.id,brand_id:'',raw_answers:{}})}><MobileIcon name="check" size={20}/><span>{v.title}</span><span aria-hidden="true">›</span></button>)}</div>
-      </section> : <>
+      </section> : version ? <>
         <div className="survey-selected-type"><strong>{version.title}</strong><button type="button" className="link" disabled={busy} onClick={()=>change({version_id:'',brand_id:'',raw_answers:{}})}>Change survey type</button></div>
         <form className="form" onSubmit={e=>void submit(e)} key={draft.id}>
         <fieldset disabled={busy} className="retail-fields form">
@@ -177,7 +177,7 @@ export function DynamicSurvey({ outletId, ownerId, onChanged, onSyncRequested }:
             : <input name={'answer:'+q.id} required={q.required} type={q.type==='number'?'number':'text'} step="any" value={draft.raw_answers[q.id]??''} onChange={e=>change({raw_answers:{...draftRef.current!.raw_answers,[q.id]:e.target.value}})} />}</label>)}
         </fieldset>
         <button disabled={busy}>{busy?'Saving…':'Save survey'}</button>
-      </form></>}
+      </form></> : null}
     </>}
     {saved.some(d=>!['editing','superseded','cancelled'].includes(d.status)) && <section aria-label="Saved survey status"><h3>Saved surveys</h3><ul className="plain">{saved.filter(d=>!['editing','superseded','cancelled'].includes(d.status)).map(d=><li key={d.id}>
       <strong>{reference?.versions.find(v=>v.id===d.version_id)?.title??'Saved form'}</strong> · {d.status==='synced'?'Synced':d.status==='rejected'?'Needs review':'Waiting to sync'}
