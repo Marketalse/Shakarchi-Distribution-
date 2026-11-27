@@ -53,6 +53,9 @@
 .mobile-shell .summary-line { font-size:12px; align-items:center; }
 .mobile-shell .summary-line>span { min-width:0; overflow-wrap:anywhere; }
 .mobile-shell .summary-line>strong { flex:none; }
+.mobile-shell .order-prior-balance { margin-top:12px; padding:14px; background:var(--bg); }
+.mobile-shell .order-prior-balance .metrics { margin:8px 0; }
+.mobile-shell .order-prior-balance .metrics>div { display:flex; justify-content:space-between; gap:12px; }
 .mobile-shell .card-link { text-align:left; }
 .mobile-shell .profile-links { gap:12px; }
 .mobile-shell .profile-links .card-link { justify-content:flex-start; min-height:70px; }
