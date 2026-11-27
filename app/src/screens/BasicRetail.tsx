@@ -206,6 +206,7 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
 
 
   const brands = [...new Set(catalog.data?.map(brandOf))].sort()
+  const productModes = [...new Set(catalog.data?.filter(item => !brand || brandOf(item) === brand).map(item => catalogMode(item.product_line)).filter(Boolean))].sort()
   const query = search.trim().toLocaleLowerCase()
   const visibleProducts = catalog.data?.filter(item => (!brand || brandOf(item) === brand) && (!productLine || item.product_line === productLine) && (!mode || catalogMode(item.product_line)===mode) && (!query || [skuOf(item),brandOf(item),item.product_line,item.sku].join(' ').toLocaleLowerCase().includes(query)))
   const selected = catalog.data?.filter(i => lines[i.id] > 0) ?? []
@@ -280,11 +281,12 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
         <button className="link" type="button" onClick={() => setReviewing(false)}>Back to products</button>
         <section className="card">
           <h2>Review order</h2>
-          {selected.map(item => <div className="summary-line" key={item.id}>
-            <span>{skuOf(item)} × {packBreakdown(lines[item.id],item.packs_per_box)}</span><strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
+          {selected.map(item => <div className="summary-line order-review-line" key={item.id}>
+            <div className="order-review-name"><strong>{skuOf(item)}</strong><span>Quantity · {packBreakdown(lines[item.id],item.packs_per_box)}</span></div>
+            <strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
-          <div className="card order-prior-balance" aria-live="polite">
+<div className="card order-prior-balance" aria-live="polite">
             <strong>Existing client balance</strong>
             {priorBalance.error?<p className="error" role="alert">Previous balances unavailable: {priorBalance.error}</p>:!priorDebt?<p role="status">Loading previous balances…</p>:<dl className="metrics">
               <div><dt>Open invoices · USD</dt><dd>{money(priorDebt.outstanding)}</dd></div>
@@ -310,13 +312,22 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
         <h2 className="order-title">New Order</h2>
         <div className="catalog-search-row"><label className="mobile-search"><MobileIcon name="search" size={20}/><input aria-label="Search products" placeholder="Search products…" type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label><button type="button" className="filter-toggle" aria-label="Product filters" aria-expanded={showFilters} onClick={()=>setShowFilters(value=>!value)}><MobileIcon name="filter" size={22}/></button></div>
         <nav className="retail-tabs brand-filters" aria-label="Catalog brand">
-          <button type="button" aria-pressed={!brand} onClick={() => {setBrand('');setProductLine('')}}>All</button>
+          <button type="button" aria-pressed={!brand} onClick={() => {setBrand('');setProductLine('');setMode('')}}>All</button>
           {brands.map(value => <button type="button" key={value} aria-pressed={brand === value}
-            onClick={() => {setBrand(value);setProductLine('')}}>{value}</button>)}
+            onClick={() => {setBrand(value);setProductLine('');setMode('')}}>{value}</button>)}
         </nav>
         <label hidden={!showFilters}>Product line<select value={productLine} onChange={e=>setProductLine(e.target.value)}><option value="">All product lines</option>{[...new Set(catalog.data?.filter(item=>!brand||brandOf(item)===brand).map(item=>item.product_line))].sort().map(line=><option key={line}>{line}</option>)}</select></label>
-        <div className="catalog-toolbar"><label>Product type<select value={mode} onChange={e=>{setMode(e.target.value);setProductLine('')}}><option value="">All types</option><option value="DTL">DTL · Direct to lung</option><option value="MTL">MTL · Mouth to lung</option></select></label><div className="layout-switch" role="group" aria-label="Product layout"><button type="button" aria-pressed={layout==='list'} onClick={()=>{setLayout('list');try{localStorage.setItem('catalog-layout','list')}catch{}}}>List</button><button type="button" aria-pressed={layout==='grid'} onClick={()=>{setLayout('grid');try{localStorage.setItem('catalog-layout','grid')}catch{}}}>2 columns</button></div></div>
-        <p className="muted catalog-help">Use −/+ in ½ Pack steps. DTL and MTL are product types within a brand.</p>
+        <div className="catalog-toolbar">{productModes.length > 1 && <div className="product-type-switch" role="group" aria-label="Product type">
+          {productModes.map(value => <button key={value} type="button" aria-pressed={mode===value} onClick={()=>{setMode(mode===value?'':value);setProductLine('')}}>{value}</button>)}
+        </div>}<div className="layout-switch" role="group" aria-label="Product layout">
+          <button type="button" aria-label="List layout" title="List" aria-pressed={layout==='list'} onClick={()=>{setLayout('list');try{localStorage.setItem('catalog-layout','list')}catch{}}}>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>
+          </button>
+          <button type="button" aria-label="Two-column layout" title="Two columns" aria-pressed={layout==='grid'} onClick={()=>{setLayout('grid');try{localStorage.setItem('catalog-layout','grid')}catch{}}}>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="4" width="7" height="7" rx="1"/><rect x="13.5" y="4" width="7" height="7" rx="1"/><rect x="3.5" y="13" width="7" height="7" rx="1"/><rect x="13.5" y="13" width="7" height="7" rx="1"/></svg>
+          </button>
+        </div></div>
+        <p className="muted catalog-help">Use −/+ in ½ Pack steps.{productModes.length > 1 && ' Tap the selected product type again to show all types.'}</p>
         <div className={'catalog-cards '+layout}>
         {visibleProducts?.map(item => <div className="card sku-row" key={item.id}>
           <div className="product-tags"><span>{brandOf(item)}</span><span>{catalogMode(item.product_line)||'Type not set'}</span><span title="Inventory quantities are not tracked yet">Stock not tracked</span></div><ProductImage path={item.image_path} label={skuOf(item)}/>
