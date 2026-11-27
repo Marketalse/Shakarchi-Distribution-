@@ -120,7 +120,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
         <div className="summary-line"><span>Collected</span><strong>{money(selected.collected)}</strong></div>
         <div className="summary-line"><span>Balance</span><strong>{money(selected.outstanding)}</strong></div>
       </section>
-      <InvoicePdfActions invoiceId={selected.id}/><button onClick={() => void share()}>Share text summary</button>
+      <div className="invoice-share-row"><InvoicePdfActions invoiceId={selected.id} compact/><button type="button" onClick={() => void share()}>Share text summary</button></div>
       {embedded&&<Link className="button" to={(embedded?'/admin/collections?invoice=':'/admin?invoice=') + selected.id}>Manage collections and reminders</Link>}
     </> : <>
       <nav className="retail-tabs" aria-label="Order list">
