@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { MobileIcon } from './MobileIcon'
 import type { Outlet } from '../lib/types'
 import { db } from '../lib/db'
 import { supabase } from '../lib/supabase'
