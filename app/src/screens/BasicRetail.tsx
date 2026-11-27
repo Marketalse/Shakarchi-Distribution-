@@ -275,8 +275,9 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
         <button className="link" type="button" onClick={() => setReviewing(false)}>Back to products</button>
         <section className="card">
           <h2>Review order</h2>
-          {selected.map(item => <div className="summary-line" key={item.id}>
-            <span>{skuOf(item)} × {packBreakdown(lines[item.id],item.packs_per_box)}</span><strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
+          {selected.map(item => <div className="summary-line order-review-line" key={item.id}>
+            <div className="order-review-name"><strong>{skuOf(item)}</strong><span>Quantity · {packBreakdown(lines[item.id],item.packs_per_box)}</span></div>
+            <strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
         </section>
