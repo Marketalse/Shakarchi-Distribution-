@@ -4,7 +4,7 @@ From this folder, run `npm install` and `npm test`. This installs the pinned PGl
 
 To reuse an existing PGlite installation, set PGLITE_MODULE_URL to its absolute dist/index.js path before running node solo-integration.mjs.
 
-The harness provides synthetic auth/storage objects and runs the baseline and later migrations through 012. It exercises finance rollback and retries, immutable ledger behavior, reminders, survey validation, import rollback, brand activation and access boundaries. PGlite uses one database connection, so this is not a real multi-session concurrency test. Rehearse concurrent postings in staging before rollout.
+The harness provides synthetic auth/storage objects and runs the baseline and later migrations through 018. It exercises finance rollback and retries, immutable ledger behavior, reminders, survey validation, import rollback, brand activation and access boundaries. Migration 018 checks the future-order FX reference, expired/missing-rate behavior, exact replay, immutable historical orders, and displayed view fields. PGlite uses one database connection, so this is not a real multi-session concurrency test. Rehearse concurrent postings in staging before rollout.
 
 ## Account build verification — 19 November 2026
 
