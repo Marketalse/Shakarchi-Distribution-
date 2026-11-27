@@ -114,14 +114,19 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     <main className={tab === 'Order' ? 'retail-detail order-detail' : 'retail-detail'}>
       <div className="detail-heading">{tab !== 'Summary' && <button className="link" onClick={() => setTab('Summary')}>← Retail details</button>}<Link to="/">All stores</Link></div>
       <section className="card client-heading" hidden={tab === 'Order'}><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} disclosure /></section>
-      <nav className="retail-tabs" aria-label="Retail actions">
-        {['Summary', 'Order', 'Payments', 'Survey forms', 'Profile', 'Survey'].map((label) =>
-          <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label === 'Summary' ? 'Visit workspace' : label}</button>)}
+      <nav className="retail-action-nav" aria-label="Client workspace">
+        {[
+          {tab:'Summary',label:'Summary',icon:'home'},
+          {tab:'Payments',label:'Payments',icon:'wallet'},
+          {tab:'Survey forms',label:'Surveys',icon:'chart'},
+        ].map(action=><button key={action.tab} type="button" aria-label={action.label} aria-pressed={['Survey forms','Survey'].includes(tab)?action.tab==='Survey forms':tab===action.tab} onClick={()=>setTab(action.tab)}>
+          <MobileIcon name={action.icon} size={22}/><span>{action.label}</span>
+        </button>)}
       </nav>
       {confirmation&&<section className="card order-confirmation"><p role="status">✓ Thank you! Order #{confirmation.number} submitted.</p><p className="muted">Continue with the customer survey below.</p><InvoicePdfActions invoiceId={confirmation.id}/><Link to={'/orders?invoice='+confirmation.id}>View invoice</Link><button className="link" onClick={()=>setConfirmation(undefined)}>Dismiss</button></section>}
       {tab === 'Profile' && <><ClientOverdue retailName={retail.retail_name} outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
-      {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/></details></>}
+      {tab === 'Survey forms' && <><DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} /><section className="card survey-observation-link"><h2>Quick market observation</h2><p className="muted">Open the existing one-off competitor observation form.</p><button type="button" onClick={()=>setTab('Survey')}>Open observation</button></section></>}
+      {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/><Link className="button" to={'/admin/clients/'+retail.id}>Edit client profile</Link></details></>}
       {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
