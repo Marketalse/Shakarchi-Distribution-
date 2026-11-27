@@ -192,6 +192,13 @@
 .mobile-shell .visit-customer-brief span,.mobile-shell .visit-customer-brief small { color:var(--muted); font-size:10px; }
 .mobile-shell .visit-customer-brief strong { font-size:13px; overflow-wrap:anywhere; }
 .mobile-shell .visit-customer-brief a { min-height:44px; display:flex; align-items:center; overflow-wrap:anywhere; }
+.mobile-shell .visit-client-metrics { padding:18px; background:white; border:1px solid var(--line); border-radius:16px; }
+.mobile-shell .visit-client-metrics h2 { margin-top:0; }
+.mobile-shell .visit-client-metrics dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:14px 0; }
+.mobile-shell .visit-client-metrics dl>div { min-width:0; padding:10px 8px; background:var(--bg); border-radius:12px; }
+.mobile-shell .visit-client-metrics dt { font-size:10px; color:var(--muted); }
+.mobile-shell .visit-client-metrics dd { margin:6px 0 0; font-size:17px; font-weight:600; overflow-wrap:anywhere; }
+.mobile-shell .visit-client-metrics p { font-size:10px; line-height:1.5; }
 .mobile-shell .visit-payments .metrics { margin:16px 0; }
 .mobile-shell .visit-payments .metrics>div { padding:12px; background:var(--bg); border:0; }
 .mobile-shell .visit-payments .metrics dd { font-size:20px; overflow-wrap:anywhere; }
