@@ -6,7 +6,7 @@ import {usdCents} from './money'
 import {baghdadDay} from './reporting'
 import type {RecordedVisit} from './operational-report'
 
-export type VisitInvoice=ClientBalance&{created_at:string;total:string|number}
+export type VisitInvoice=ClientBalance&{created_at:string;total:string|number;collected:string|number}
 export type VisitSource<T>={rows:T[];at:string}
 export function visitPayments(rows:VisitInvoice[],outletId:string,at:Date){
  const debt=clientDebt(rows,outletId,baghdadDay(at))
