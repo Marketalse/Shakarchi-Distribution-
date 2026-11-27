@@ -9,6 +9,7 @@ import { en as t } from '../i18n/en'
 export function Outlets({ version }: { version: number }) {
   const [params]=useSearchParams()
   const creatingOrder=params.get('action')==='order'
+  const startingSurvey=params.get('action')==='survey'
   const [outlets, setOutlets] = useState<Outlet[]>([])
   const [queued, setQueued] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
@@ -27,8 +28,8 @@ export function Outlets({ version }: { version: number }) {
   return (
     <main>
       <div className="row">
-        <h1>{creatingOrder?'Choose customer':'Your clients'}</h1>
-        <Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link>
+        <h1>{creatingOrder?'Choose customer':startingSurvey?'Choose customer for survey':'Your clients'}</h1>
+        <div className="outlet-primary-actions"><Link className="button primary" to="/outlets/new"><MobileIcon name="plus" size={20} />New client</Link><Link className="button primary" to="/?action=survey"><MobileIcon name="check" size={20} />Start survey</Link></div>
       </div>
       <label className="mobile-search"><MobileIcon name="search" size={21} /><input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} /></label>
       <p className="client-count">{shown.length} {shown.length === 1 ? 'client' : 'clients'}</p>
@@ -40,7 +41,7 @@ export function Outlets({ version }: { version: number }) {
         <ul className="list">
           {shown.map((o) => (
             <li key={o.id} className="retail-row">
-              <Link to={`/retails/${o.id}${creatingOrder?'?action=order':''}`} className="client-identity">
+              <Link to={`/retails/${o.id}${creatingOrder?'?action=order':startingSurvey?'?action=survey':''}`} className="client-identity">
                 <span className="client-avatar" aria-hidden="true">{o.retail_name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('')}</span>
                 <span>
                   <strong>{o.retail_name}</strong>

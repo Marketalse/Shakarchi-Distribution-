@@ -1,7 +1,9 @@
 import {InvoicePdfActions} from './InvoicePdfActions'
+import {clientDebt} from '../lib/invoice-display'
 import {catalogMode} from '../lib/catalog-display'
 import {ProductImage} from './ProductImage'
 import {VisitWorkspace} from './VisitWorkspace'
+import {visitRows} from '../lib/visit-workspace'
 import {liveQuery} from 'dexie'
 import {fieldCatalog} from '../lib/catalog'
 import {stagePhoto} from '../lib/attachments'
@@ -73,7 +75,7 @@ function useRows<T>(loader: () => Promise<T>, key: string, identity=key) {
 export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequested }: { version: number; ownerId: string; onCaptureChanged: () => void; onSyncRequested: () => Promise<void> }) {
   const { outletId } = useParams()
   const [routeParams]=useSearchParams()
-  const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':'Summary')
+  const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':routeParams.get('action')==='survey'?'Survey forms':'Summary')
   const [confirmation,setConfirmation]=useState<{id:string;number:number}>()
   const [visitId, setVisitId] = useState('')
   const [visitError, setVisitError] = useState('')
@@ -114,14 +116,18 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     <main className={tab === 'Order' ? 'retail-detail order-detail' : 'retail-detail'}>
       <div className="detail-heading">{tab !== 'Summary' && <button className="link" onClick={() => setTab('Summary')}>← Retail details</button>}<Link to="/">All stores</Link></div>
       <section className="card client-heading" hidden={tab === 'Order'}><span className="client-avatar"><MobileIcon name="shop" /></span><div><h1>{retail.retail_name}</h1><p className="muted">{retail.area}</p></div><StoreNavigation retail={retail} disclosure /></section>
-      <nav className="retail-tabs" aria-label="Retail actions">
-        {['Summary', 'Order', 'Payments', 'Survey forms', 'Profile', 'Survey'].map((label) =>
-          <button key={label} aria-pressed={label === tab} onClick={() => setTab(label)}>{label === 'Summary' ? 'Visit workspace' : label}</button>)}
+      <nav className="retail-action-nav" aria-label="Client workspace">
+        {[
+          {tab:'Summary',label:'Summary',icon:'home'},
+          {tab:'Payments',label:'Payments',icon:'wallet'},
+          {tab:'Survey forms',label:'Surveys',icon:'chart'},
+        ].map(action=><button key={action.tab} type="button" aria-label={action.label} aria-pressed={['Survey forms','Survey'].includes(tab)?action.tab==='Survey forms':tab===action.tab} onClick={()=>setTab(action.tab)}>
+          <MobileIcon name={action.icon} size={22}/><span>{action.label}</span>
+        </button>)}
       </nav>
       {confirmation&&<section className="card order-confirmation"><p role="status">✓ Thank you! Order #{confirmation.number} submitted.</p><p className="muted">Continue with the customer survey below.</p><InvoicePdfActions invoiceId={confirmation.id}/><Link to={'/orders?invoice='+confirmation.id}>View invoice</Link><button className="link" onClick={()=>setConfirmation(undefined)}>Dismiss</button></section>}
-      {tab === 'Profile' && <><ClientOverdue retailName={retail.retail_name} outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
-      {tab === 'Survey forms' && <DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} />}
-      {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/></details></>}
+      {tab === 'Survey forms' && <><DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} /><section className="card survey-observation-link"><h2>Quick market observation</h2><p className="muted">Open the existing one-off competitor observation form.</p><button type="button" onClick={()=>setTab('Survey')}>Open observation</button></section></>}
+      {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/><Link className="button" to={'/admin/clients/'+retail.id}>Edit client profile</Link></details></>}
       {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
@@ -160,6 +166,7 @@ function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:numb
 export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: (invoice:{order_id:string;invoice_no:number}) => void; ownerId:string;cacheVersion:number }) {
   const [revision, setRevision] = useState(0)
   const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`,'catalog')
+  const priorBalance = useRows(()=>visitRows<Balance>(db,supabase,ownerId,outletId,'solo_invoice_balances','id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot'),`prior-balance:${outletId}:${cacheVersion}:${revision}`,'prior-balance:'+ownerId+':'+outletId)
   const [brand, setBrand] = useState('')
   const [productLine,setProductLine]=useState('')
   const [mode,setMode]=useState('')
@@ -210,6 +217,9 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
   const total = sum(selected.map(i => packTotal(i.selling_price, i.items_per_half_pack, lines[i.id])))
   let paymentSummary: ReturnType<typeof checkoutBalance> | undefined
   try { paymentSummary = checkoutBalance(total,initialReceipt) } catch { /* Display validation on submit. */ }
+  let priorDebt: ReturnType<typeof clientDebt> | undefined
+  let priorCredit: string | undefined
+  try { if(priorBalance.data){priorDebt=clientDebt(priorBalance.data.rows,outletId,baghdadDay(new Date()));priorCredit=sumUsd(priorBalance.data.rows.filter(row=>row.outlet_id===outletId).map(row=>row.overpayment))} } catch { /* Keep duplicate or invalid ledger summaries unavailable. */ }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -280,6 +290,14 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
             <strong>{money(packTotal(item.selling_price, item.items_per_half_pack, lines[item.id]))}</strong>
           </div>)}
           <div className="summary-line"><strong>Total</strong><strong>{money(total)}</strong></div>
+<div className="card order-prior-balance" aria-live="polite">
+            <strong>Existing client balance</strong>
+            {priorBalance.error?<p className="error" role="alert">Previous balances unavailable: {priorBalance.error}</p>:!priorDebt?<p role="status">Loading previous balances…</p>:<dl className="metrics">
+              <div><dt>Open invoices · USD</dt><dd>{money(priorDebt.outstanding)}</dd></div>
+              <div><dt>Separate invoice credits · USD</dt><dd>{money(priorCredit!)}</dd></div>
+            </dl>}
+            {priorDebt&&<p className="muted">Credits are shown separately and do not reduce another invoice’s debt. Balance snapshot · {new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium',timeStyle:'short'}).format(new Date(priorBalance.data!.at))} Baghdad time.</p>}
+          </div>
         </section>
         <label>Payment terms<select value={terms} onChange={e => setTerms(e.target.value)}>
           <option value="0">Cash — due today</option>
