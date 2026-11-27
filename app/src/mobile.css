@@ -139,6 +139,9 @@
 .mobile-shell button:focus-visible,.mobile-shell a:focus-visible,.mobile-shell input:focus-visible,.mobile-shell summary:focus-visible,.mobile-shell select:focus-visible { outline:3px solid #607C12; outline-offset:3px; }
 .mobile-shell [hidden] { display:none !important; }
 .mobile-shell .detail-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12px; }
+.mobile-shell .outlet-primary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; }
+.mobile-shell .outlet-primary-actions .button { min-width:0; min-height:48px; padding:8px 10px; display:flex; align-items:center; justify-content:center; gap:6px; text-align:center; font-size:11px; }
+@media(max-width:360px){.mobile-shell .outlet-primary-actions .button{padding:6px;font-size:10px}}
 .mobile-shell .detail-heading button { min-height:44px; padding:0; }
 .mobile-shell .client-heading { padding:16px; }
 .mobile-shell .client-heading .store-navigation { padding-left:0; width:auto; }

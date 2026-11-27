@@ -75,7 +75,7 @@ function useRows<T>(loader: () => Promise<T>, key: string, identity=key) {
 export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequested }: { version: number; ownerId: string; onCaptureChanged: () => void; onSyncRequested: () => Promise<void> }) {
   const { outletId } = useParams()
   const [routeParams]=useSearchParams()
-  const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':'Summary')
+  const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':routeParams.get('action')==='survey'?'Survey forms':'Summary')
   const [confirmation,setConfirmation]=useState<{id:string;number:number}>()
   const [visitId, setVisitId] = useState('')
   const [visitError, setVisitError] = useState('')
