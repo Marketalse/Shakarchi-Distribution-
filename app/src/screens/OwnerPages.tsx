@@ -108,7 +108,7 @@ export function Orders({embedded=false}:{embedded?:boolean}={}) {
   async function copyDispatchNote() {
     if (!selected || !lines?.length) { setError('Invoice items are not ready to copy.'); return }
     const client=retails.find(row=>row.id===selected.outlet_id)
-    const clean=(value:unknown)=>String(value??'').replace(/[\\r\\n|]+/g,' ').trim()||'—'
+    const clean=(value:unknown)=>String(value??'').replace(/[\r\n|]+/g,' ').trim()||'—'
     const store=selected.recipient_snapshot?.name || lineState?.clientName || client?.retail_name || 'Store name not recorded'
     const phone=client?.owner_phone?.trim() || 'Not recorded'
     const location=client?.address?.trim() || [client?.area,client?.province].filter(Boolean).join(', ') || 'Not recorded'
