@@ -53,6 +53,9 @@
 .mobile-shell .summary-line { font-size:12px; align-items:center; }
 .mobile-shell .summary-line>span { min-width:0; overflow-wrap:anywhere; }
 .mobile-shell .summary-line>strong { flex:none; }
+.mobile-shell .collection-input-row { display:flex; gap:8px; align-items:center; }
+.mobile-shell .collection-input-row input { min-width:0; flex:1; }
+.mobile-shell .collection-max { min-width:64px; min-height:50px; padding:8px 14px; }
 .mobile-shell .order-prior-balance { margin-top:12px; padding:14px; background:var(--bg); }
 .mobile-shell .order-prior-balance .metrics { margin:8px 0; }
 .mobile-shell .order-prior-balance .metrics>div { display:flex; justify-content:space-between; gap:12px; }

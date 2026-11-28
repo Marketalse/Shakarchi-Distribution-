@@ -303,8 +303,8 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
           <option value="0">Cash — due today</option>
           {CREDIT_DAYS.map(days => <option key={days} value={days}>Credit — {days} days</option>)}
         </select></label>
-        <label>Amount collected now · $<input type="number" min="0" max={total}
-          step="0.01" required value={initialReceipt} onChange={e => setInitialReceipt(e.target.value)} /></label>
+        <label>Amount collected now · $<div className="collection-input-row"><input type="number" min="0" max={total}
+          step="0.01" required value={initialReceipt} onChange={e => setInitialReceipt(e.target.value)} /><button type="button" className="collection-max" onClick={() => setInitialReceipt(String(total))}>Max</button></div></label>
         <div className="card summary-line"><span>Remaining balance · {paymentSummary?.status ?? 'Check amount'}</span>
           <strong>{paymentSummary ? money(paymentSummary.remaining) : '—'}</strong></div>
         <p className="muted">Cash means due today. Only the amount collected marks the invoice paid. {paymentSummary?.status === 'Paid' ? 'Paid invoices need no collection reminder.' : 'A collection reminder is set for four days.'}</p>
