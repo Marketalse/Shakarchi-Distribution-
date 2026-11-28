@@ -1,3 +1,24 @@
 .invoice-paper .invoice-brand{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}.invoice-brand img{max-width:160px;max-height:64px;object-fit:contain}.invoice-brand strong{font-size:18px}.invoice-recipient{margin:18px 0}.invoice-recipient h3{font-size:18px;margin:4px 0;overflow-wrap:anywhere}.invoice-items{width:100%;border-collapse:collapse;margin:20px 0}.invoice-items th,.invoice-items td{text-align:left;padding:12px 8px;border-bottom:1px solid #e9edf1;font-size:12px;vertical-align:top;overflow-wrap:anywhere}.invoice-items th{color:#526277;font-weight:500}.invoice-items th:nth-last-child(-n+3),.invoice-items td:nth-last-child(-n+3){text-align:right;font-variant-numeric:tabular-nums}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.client-overdue{display:grid;gap:14px}.client-overdue small{display:block}.client-overdue .metrics dd{font-size:22px}.client-overdue .list a{display:flex;justify-content:space-between;gap:12px;text-decoration:none}
 @media(max-width:600px){.invoice-items thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.invoice-items,.invoice-items tbody{display:block}.invoice-items tr{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:16px 0;border-bottom:1px solid #e9edf1}.invoice-items td,.invoice-items td:nth-last-child(-n+3){display:flex;flex-direction:column;gap:4px;border:0;padding:0;text-align:left;font-size:13px}.invoice-items td:first-child{grid-column:1/-1;font-weight:600;font-size:15px}.invoice-items td:before{content:attr(data-label);font-size:10px;font-weight:400;color:#657286}}
 @media print{.invoice-items,.invoice-items tbody{display:table-row-group}.invoice-items{display:table}.invoice-items thead{position:static;width:auto;height:auto;clip:auto;display:table-header-group}.invoice-items tr{display:table-row}.invoice-items td{display:table-cell}.invoice-items td:before{content:none}}
+
+/* Annotation #10: compact receipt hierarchy while preserving recorded invoice values. */
+.invoice-receipt { max-width:720px; margin:0 auto; }
+.invoice-receipt .invoice-brand { padding-bottom:14px; margin-bottom:14px; border-bottom:1px dashed #b9c3d0; }
+.invoice-receipt .invoice-recipient { padding:12px 0 14px; margin:0; border-bottom:1px dashed #b9c3d0; }
+.invoice-receipt .invoice-items { margin:8px 0 14px; }
+.invoice-totals { display:grid; gap:0; border-top:1px dashed #b9c3d0; padding-top:8px; font-variant-numeric:tabular-nums; }
+.invoice-amount-line { display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:8px 0; }
+.invoice-amount-line span { color:#526277; }
+.invoice-amount-line strong { text-align:right; white-space:nowrap; }
+.invoice-remaining { margin-top:4px; padding-top:12px; border-top:1px solid #dfe4ea; font-size:16px; color:#1d2a44; }
+.invoice-remaining span { color:inherit; font-weight:600; }
+.invoice-remaining strong { font-size:19px; }
+@media(max-width:600px) {
+ .invoice-receipt { padding:16px; }
+ .invoice-receipt .invoice-brand { margin-bottom:10px; }
+ .invoice-receipt .invoice-recipient { margin:0; }
+ .invoice-receipt .invoice-items tr { gap:8px 12px; padding:11px 0; }
+ .invoice-receipt .invoice-items td { font-size:12px; }
+ .invoice-receipt .invoice-items td:first-child { font-size:14px; }
+}
