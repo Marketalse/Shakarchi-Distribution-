@@ -77,6 +77,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
   const [routeParams]=useSearchParams()
   const [tab, setTab] = useState(routeParams.get('action')==='order'?'Order':routeParams.get('action')==='survey'?'Survey forms':'Summary')
   const [confirmation,setConfirmation]=useState<{id:string;number:number}>()
+  const [surveyPrompt,setSurveyPrompt]=useState(false)
   const [visitId, setVisitId] = useState('')
   const [visitError, setVisitError] = useState('')
   const [visitBusy, setVisitBusy] = useState(false)
@@ -109,7 +110,7 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
     String(outletId) + ':' + version + ':' + revision,
     String(outletId),
   )
-  const orderConfirmed=useCallback((invoice:{order_id:string;invoice_no:number})=>{setConfirmation({id:invoice.order_id,number:invoice.invoice_no});setRevision(n=>n+1);setTab('Survey forms')},[])
+  const orderConfirmed=useCallback((invoice:{order_id:string;invoice_no:number})=>{setConfirmation({id:invoice.order_id,number:invoice.invoice_no});setRevision(n=>n+1);setTab('Summary');setSurveyPrompt(true)},[])
   if (!outletId || !retail) return <main><Link to="/">Retail list</Link><p>Retail details are unavailable.</p></main>
 
   return (
@@ -125,13 +126,15 @@ export function RetailDetail({ version, ownerId, onCaptureChanged, onSyncRequest
           <MobileIcon name={action.icon} size={22}/><span>{action.label}</span>
         </button>)}
       </nav>
-      {confirmation&&<section className="card order-confirmation"><p role="status">✓ Thank you! Order #{confirmation.number} submitted.</p><p className="muted">Continue with the customer survey below.</p><InvoicePdfActions invoiceId={confirmation.id}/><Link to={'/orders?invoice='+confirmation.id}>View invoice</Link><button className="link" onClick={()=>setConfirmation(undefined)}>Dismiss</button></section>}
+      {confirmation&&<section className="card order-confirmation"><p role="status">✓ Thank you! Order #{confirmation.number} submitted.</p><p className="muted">Order confirmed. You can start a survey now or return to it later.</p><InvoicePdfActions invoiceId={confirmation.id}/><Link to={'/orders?invoice='+confirmation.id}>View invoice</Link><button className="link" onClick={()=>setConfirmation(undefined)}>Dismiss</button></section>}
+      {surveyPrompt&&<div className="survey-prompt-backdrop"><section className="card survey-prompt" role="dialog" aria-modal="true" aria-labelledby="survey-prompt-title"><h2 id="survey-prompt-title">Start a survey?</h2><p>Order confirmed for {retail.retail_name}. Would you like to start a survey now?</p><div><button className="primary" onClick={()=>{setSurveyPrompt(false);setTab('Survey forms')}}>Start survey</button><button type="button" onClick={()=>setSurveyPrompt(false)}>Not now</button></div></section></div>}
+      {tab === 'Profile' && <><ClientOverdue retailName={retail.retail_name} outletId={outletId} revision={revision+version}/><section className="card"><h2>Client profile</h2><p>{retail.owner_name || 'Owner name not recorded'}</p><p>{retail.owner_phone || 'Owner phone not recorded'}</p><p>{[retail.area,retail.province].join(', ')}</p><Link to={'/admin/clients/'+retail.id}>Edit in admin hub</Link></section></>}
       {tab === 'Survey forms' && <><DynamicSurvey outletId={outletId} ownerId={ownerId} onChanged={onCaptureChanged} onSyncRequested={onSyncRequested} /><section className="card survey-observation-link"><h2>Quick market observation</h2><p className="muted">Open the existing one-off competitor observation form.</p><button type="button" onClick={()=>setTab('Survey')}>Open observation</button></section></>}
       {tab === 'Summary' && <><VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')}/><details className="retail-disclosure"><summary>Store details & full invoice history <span>⌄</span></summary><Summary key={version+':'+revision} retail={retail} revision={revision}/><Link className="button" to={'/admin/clients/'+retail.id}>Edit client profile</Link></details></>}
       {tab === 'Payments' && <VisitWorkspace retail={retail} ownerId={ownerId} version={version+revision} onOrder={()=>setTab('Order')} onSurvey={()=>setTab('Survey forms')} paymentsOnly/>}
       {['Order','Survey'].includes(tab) && visitBusy && <p role="status">Loading visit…</p>}
       {['Order','Survey'].includes(tab) && visitError && <p className="error" role="alert">{visitError}</p>}
-      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={orderConfirmed} />}
+      {tab === 'Order' && visitId && !visitBusy && !visitError && <OrderForm key={outletId} ownerId={ownerId} cacheVersion={version} outletId={outletId} visitId={visitId} onSaved={orderConfirmed} onSurvey={()=>setTab('Survey forms')} />}
       {tab === 'Survey' && visitId && !visitBusy && !visitError && <SurveyForm key={outletId} outletId={outletId} visitId={visitId} />}
       {['Order','Survey'].includes(tab) && visitId && <button disabled={visitBusy} onClick={() => void finishVisit()}>Finish this visit</button>}
     </main>
@@ -163,7 +166,7 @@ function ClientInvoiceHistory({outletId,revision}:{outletId:string;revision:numb
   return <section className="card journey-card"><h2>Customer Journey</h2><p className="muted">Recent invoices</p>{error?<p role="alert">{error}</p>:!data?<p role="status">Loading invoices…</p>:!data.length?<p>No invoices yet.</p>:<table className="invoice-summary"><thead><tr><th>Invoice date</th><th>Invoice amount</th></tr></thead><tbody>{[...data].sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(row=><tr key={row.id}><td>{new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Baghdad',dateStyle:'medium'}).format(new Date(row.created_at))}</td><td><Link to={'/orders?invoice='+row.id} aria-label={'Open invoice details for '+new Date(row.created_at).toLocaleDateString('en-GB')}>{money(row.total)}</Link></td></tr>)}</tbody></table>}</section>
 }
 
-export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: (invoice:{order_id:string;invoice_no:number}) => void; ownerId:string;cacheVersion:number }) {
+export function OrderForm({ outletId, visitId, onSaved,onSurvey,ownerId,cacheVersion }: { outletId: string; visitId: string; onSaved: (invoice:{order_id:string;invoice_no:number}) => void;onSurvey:()=>void; ownerId:string;cacheVersion:number }) {
   const [revision, setRevision] = useState(0)
   const catalog = useRows(()=>fieldCatalog(db,supabase),`${revision}:${cacheVersion}`,'catalog')
   const priorBalance = useRows(()=>visitRows<Balance>(db,supabase,ownerId,outletId,'solo_invoice_balances','id,invoice_no,outlet_id,total,collected,outstanding,overpayment,due_date,payment_status,recipient_snapshot'),`prior-balance:${outletId}:${cacheVersion}:${revision}`,'prior-balance:'+ownerId+':'+outletId)
@@ -280,6 +283,7 @@ export function OrderForm({ outletId, visitId, onSaved,ownerId,cacheVersion }: {
   }
 
   return <form className="form" onSubmit={(e) => void submit(e)}>
+    <div className="order-screen-actions"><button type="button" className="link" onClick={()=>{void draftWrites.current.then(onSurvey).catch(e=>setError('Draft save failed: '+message(e)))}}><MobileIcon name="check" size={18}/>Start survey for this client</button></div>
     <fieldset disabled={busy || !draftReady} className="form retail-fields">
       {reviewing ? <>
         <button className="link" type="button" onClick={() => setReviewing(false)}>Back to products</button>
