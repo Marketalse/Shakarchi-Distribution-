@@ -264,6 +264,16 @@
 .mobile-shell .catalog-cards.grid .stepper output {min-width:0;max-width:none;font-size:10px;overflow-wrap:anywhere;white-space:normal;text-align:center;line-height:1.25}
 .mobile-shell .catalog-cards.grid .stepper button {width:44px;height:44px;padding:0;min-width:0}
 .mobile-shell .order-confirmation {background:#eff8db;border-color:#d5eaa4;margin:12px 0}
+.mobile-shell .survey-type-menu { padding:18px; background:white; border:1px solid var(--line); border-radius:16px; }
+.mobile-shell .survey-type-menu h3 { margin-top:0; }
+.mobile-shell .survey-type-menu>p { font-size:11px; }
+.mobile-shell .survey-type-menu>div { display:grid; gap:8px; margin-top:14px; }
+.mobile-shell .survey-type-option { display:grid; grid-template-columns:24px minmax(0,1fr) 18px; align-items:center; gap:10px; min-height:56px; padding:10px 12px; text-align:left; background:var(--bg); border:1px solid var(--line); }
+.mobile-shell .survey-type-option span:nth-child(2) { overflow-wrap:anywhere; }
+.mobile-shell .survey-selected-type { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.mobile-shell .survey-selected-type>strong { min-width:0; overflow-wrap:anywhere; }
+.mobile-shell .survey-selected-type button { min-height:44px; white-space:nowrap; }
+@media(max-width:360px){.mobile-shell .survey-selected-type{align-items:flex-start;flex-direction:column;gap:4px}}
 .mobile-shell .order-confirmation>p:first-child {font-size:16px;font-weight:600}
 .invoice-pdf-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
 .mobile-shell .retail-row .client-identity {min-width:0}
